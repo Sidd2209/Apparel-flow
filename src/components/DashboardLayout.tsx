@@ -25,9 +25,11 @@ const departmentConfig = {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  onNavigate: (view: string) => void;
+  currentView: string;
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, onNavigate, currentView }) => {
   const { user, logout } = useAuth();
 
   if (!user) return null;
@@ -36,7 +38,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   return (
     <>
-      <AppSidebar />
+      <AppSidebar onNavigate={onNavigate} currentView={currentView} />
       <SidebarInset>
         <header className="bg-white shadow-sm border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

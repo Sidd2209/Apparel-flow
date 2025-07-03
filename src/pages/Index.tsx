@@ -1,23 +1,35 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import Login from '@/components/Login';
 import Dashboard from '@/components/Dashboard';
+import CostingCalculator from '@/components/CostingCalculator';
 import DashboardLayout from '@/components/DashboardLayout';
 
 const AppContent: React.FC = () => {
   const { user } = useAuth();
+  const [currentView, setCurrentView] = useState('dashboard');
 
   if (!user) {
     return <Login />;
   }
 
+  const renderContent = () => {
+    switch (currentView) {
+      case 'costing':
+        return <CostingCalculator />;
+      case 'dashboard':
+      default:
+        return <Dashboard />;
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
-        <DashboardLayout>
-          <Dashboard />
+        <DashboardLayout onNavigate={setCurrentView} currentView={currentView}>
+          {renderContent()}
         </DashboardLayout>
       </div>
     </SidebarProvider>
