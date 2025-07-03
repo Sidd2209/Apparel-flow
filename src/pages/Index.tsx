@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import Login from '@/components/Login';
 import Dashboard from '@/components/Dashboard';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -13,9 +14,13 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <DashboardLayout>
-      <Dashboard />
-    </DashboardLayout>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <DashboardLayout>
+          <Dashboard />
+        </DashboardLayout>
+      </div>
+    </SidebarProvider>
   );
 };
 
