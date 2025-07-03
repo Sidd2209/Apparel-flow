@@ -13,7 +13,16 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Department } from '@/types';
-import { Calculator, Truck, Calendar } from 'lucide-react';
+import { 
+  Calculator, 
+  Truck, 
+  Calendar, 
+  ShoppingCart, 
+  Lightbulb, 
+  CheckSquare, 
+  Package, 
+  BarChart3 
+} from 'lucide-react';
 
 const departmentConfig = {
   merchandising: { name: 'Merchandising', color: 'bg-blue-500', emoji: '📋' },
@@ -34,6 +43,17 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ onNavigate, currentView }) => {
   const collapsed = state === 'collapsed';
 
   if (!user) return null;
+
+  const coreModules = [
+    { key: 'orders', label: 'Order Management', icon: ShoppingCart },
+    { key: 'product-dev', label: 'Product Development', icon: Lightbulb },
+    { key: 'costing', label: 'Costing Calculator', icon: Calculator },
+    { key: 'sourcing', label: 'Sourcing Management', icon: Truck },
+    { key: 'production', label: 'Production Scheduler', icon: Calendar },
+    { key: 'quality', label: 'Quality Control', icon: CheckSquare },
+    { key: 'shipping', label: 'Packing & Shipping', icon: Package },
+    { key: 'inventory', label: 'Inventory Management', icon: BarChart3 },
+  ];
 
   return (
     <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible="icon">
@@ -64,37 +84,21 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ onNavigate, currentView }) => {
 
         <SidebarGroup>
           <SidebarGroupLabel>
-            {!collapsed && "Tools"}
+            {!collapsed && "Core Modules"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => onNavigate('costing')}
-                  className={`${currentView === 'costing' ? 'bg-muted text-primary font-medium' : 'hover:bg-muted/50'}`}
-                >
-                  <Calculator className="h-5 w-5 mr-2" />
-                  {!collapsed && <span>Costing Calculator</span>}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => onNavigate('sourcing')}
-                  className={`${currentView === 'sourcing' ? 'bg-muted text-primary font-medium' : 'hover:bg-muted/50'}`}
-                >
-                  <Truck className="h-5 w-5 mr-2" />
-                  {!collapsed && <span>Sourcing Management</span>}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => onNavigate('production')}
-                  className={`${currentView === 'production' ? 'bg-muted text-primary font-medium' : 'hover:bg-muted/50'}`}
-                >
-                  <Calendar className="h-5 w-5 mr-2" />
-                  {!collapsed && <span>Production Scheduler</span>}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {coreModules.map((module) => (
+                <SidebarMenuItem key={module.key}>
+                  <SidebarMenuButton
+                    onClick={() => onNavigate(module.key)}
+                    className={`${currentView === module.key ? 'bg-muted text-primary font-medium' : 'hover:bg-muted/50'}`}
+                  >
+                    <module.icon className="h-5 w-5 mr-2" />
+                    {!collapsed && <span>{module.label}</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
