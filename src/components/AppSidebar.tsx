@@ -13,7 +13,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Department } from '@/types';
-import { Calculator } from 'lucide-react';
+import { Calculator, Truck, Calendar } from 'lucide-react';
 
 const departmentConfig = {
   merchandising: { name: 'Merchandising', color: 'bg-blue-500', emoji: '📋' },
@@ -70,20 +70,29 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ onNavigate, currentView }) => {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  onClick={() => onNavigate('dashboard')}
-                  className={`${currentView === 'dashboard' ? 'bg-muted text-primary font-medium' : 'hover:bg-muted/50'}`}
-                >
-                  <span className="text-lg mr-2">📊</span>
-                  {!collapsed && <span>Dashboard</span>}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
                   onClick={() => onNavigate('costing')}
                   className={`${currentView === 'costing' ? 'bg-muted text-primary font-medium' : 'hover:bg-muted/50'}`}
                 >
                   <Calculator className="h-5 w-5 mr-2" />
                   {!collapsed && <span>Costing Calculator</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => onNavigate('sourcing')}
+                  className={`${currentView === 'sourcing' ? 'bg-muted text-primary font-medium' : 'hover:bg-muted/50'}`}
+                >
+                  <Truck className="h-5 w-5 mr-2" />
+                  {!collapsed && <span>Sourcing Management</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => onNavigate('production')}
+                  className={`${currentView === 'production' ? 'bg-muted text-primary font-medium' : 'hover:bg-muted/50'}`}
+                >
+                  <Calendar className="h-5 w-5 mr-2" />
+                  {!collapsed && <span>Production Scheduler</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
