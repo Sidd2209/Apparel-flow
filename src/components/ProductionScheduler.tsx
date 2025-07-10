@@ -1,5 +1,5 @@
-
 import React, { useState } from 'react';
+import { useQuery, useMutation, gql } from '@apollo/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,73 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Calendar, Plus, Clock, Users, TrendingUp, AlertTriangle } from 'lucide-react';
+
+// GraphQL Queries and Mutations
+const GET_PRODUCTION_PLANS = gql`
+  query GetProductionPlans {
+    productionPlans {
+      id
+      productName
+      quantity
+      startDate
+      endDate
+      status
+      progress
+      assignedWorkers
+      estimatedHours
+      actualHours
+      priority
+    }
+  }
+`;
+
+const CREATE_PRODUCTION_PLAN = gql`
+  mutation CreateProductionPlan($input: ProductionPlanInput!) {
+    createProductionPlan(input: $input) {
+      id
+      productName
+      quantity
+      startDate
+      endDate
+      status
+      progress
+      assignedWorkers
+      estimatedHours
+      actualHours
+      priority
+    }
+  }
+`;
+
+const GET_RESOURCES = gql`
+  query GetResources {
+    resources {
+      id
+      name
+      type
+      capacity
+      allocated
+      available
+      efficiency
+    }
+  }
+`;
+
+const CREATE_RESOURCE = gql`
+  mutation CreateResource($input: ResourceInput!) {
+    createResource(input: $input) {
+      id
+      name
+      type
+      capacity
+      allocated
+      available
+      efficiency
+    }
+  }
+`;
 
 interface ProductionPlan {
   id: string;
@@ -16,18 +82,18 @@ interface ProductionPlan {
   quantity: number;
   startDate: string;
   endDate: string;
-  status: 'planned' | 'in-progress' | 'completed' | 'delayed';
+  status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'DELAYED';
   progress: number;
   assignedWorkers: number;
   estimatedHours: number;
   actualHours: number;
-  priority: 'low' | 'medium' | 'high';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
 interface Resource {
   id: string;
   name: string;
-  type: 'machine' | 'worker' | 'material';
+  type: 'MACHINE' | 'WORKER' | 'MATERIAL';
   capacity: number;
   allocated: number;
   available: number;
@@ -35,111 +101,101 @@ interface Resource {
 }
 
 const ProductionScheduler: React.FC = () => {
-  const [productionPlans, setProductionPlans] = useState<ProductionPlan[]>([
-    {
-      id: 'PP-001',
-      productName: 'Cotton T-Shirts',
-      quantity: 500,
-      startDate: '2024-01-20',
-      endDate: '2024-01-30',
-      status: 'in-progress',
-      progress: 65,
-      assignedWorkers: 8,
-      estimatedHours: 240,
-      actualHours: 156,
-      priority: 'high'
-    },
-    {
-      id: 'PP-002',
-      productName: 'Denim Jeans',
-      quantity: 300,
-      startDate: '2024-01-25',
-      endDate: '2024-02-05',
-      status: 'planned',
-      progress: 0,
-      assignedWorkers: 12,
-      estimatedHours: 360,
-      actualHours: 0,
-      priority: 'medium'
-    },
-    {
-      id: 'PP-003',
-      productName: 'Polo Shirts',
-      quantity: 200,
-      startDate: '2024-01-15',
-      endDate: '2024-01-22',
-      status: 'delayed',
-      progress: 40,
-      assignedWorkers: 6,
-      estimatedHours: 160,
-      actualHours: 120,
-      priority: 'high'
-    }
-  ]);
+  const [isAddPlanDialogOpen, setAddPlanDialogOpen] = useState(false);
+  const [isAddResourceDialogOpen, setAddResourceDialogOpen] = useState(false);
 
-  const [resources, setResources] = useState<Resource[]>([
-    {
-      id: 'R-001',
-      name: 'Cutting Machines',
-      type: 'machine',
-      capacity: 10,
-      allocated: 7,
-      available: 3,
-      efficiency: 92
-    },
-    {
-      id: 'R-002',
-      name: 'Sewing Operators',
-      type: 'worker',
-      capacity: 25,
-      allocated: 20,
-      available: 5,
-      efficiency: 88
-    },
-    {
-      id: 'R-003',
-      name: 'Quality Inspectors',
-      type: 'worker',
-      capacity: 8,
-      allocated: 6,
-      available: 2,
-      efficiency: 95
-    },
-    {
-      id: 'R-004',
-      name: 'Cotton Fabric',
-      type: 'material',
-      capacity: 1000,
-      allocated: 650,
-      available: 350,
-      efficiency: 100
-    }
-  ]);
+  const { data: plansData, loading: plansLoading, error: plansError } = useQuery(GET_PRODUCTION_PLANS);
+  const { data: resourcesData, loading: resourcesLoading, error: resourcesError } = useQuery(GET_RESOURCES);
+
+  const [createProductionPlan] = useMutation(CREATE_PRODUCTION_PLAN, {
+    refetchQueries: [{ query: GET_PRODUCTION_PLANS }],
+  });
+
+  const [createResource] = useMutation(CREATE_RESOURCE, {
+    refetchQueries: [{ query: GET_RESOURCES }],
+  });
+
+  const productionPlans: ProductionPlan[] = plansData?.productionPlans || [];
+  const resources: Resource[] = resourcesData?.resources || [];
+
+  const [newPlan, setNewPlan] = useState({
+    productName: '',
+    quantity: 0,
+    startDate: '',
+    endDate: '',
+    status: 'PLANNED' as ProductionPlan['status'],
+    priority: 'MEDIUM' as ProductionPlan['priority'],
+    assignedWorkers: 0,
+    estimatedHours: 0,
+  });
+
+  const [newResource, setNewResource] = useState({
+    name: '',
+    type: 'MACHINE' as Resource['type'],
+    capacity: 0,
+    efficiency: 0,
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, setState: Function) => {
+    const { name, value } = e.target;
+    setState((prevState: any) => ({ ...prevState, [name]: value }));
+  };
+
+  const handleSelectChange = (name: string, value: string, setState: Function) => {
+    setState((prevState: any) => ({ ...prevState, [name]: value }));
+  };
+
+  const handleAddPlan = async () => {
+    await createProductionPlan({
+      variables: {
+        input: {
+          ...newPlan,
+          quantity: parseInt(String(newPlan.quantity), 10),
+          assignedWorkers: parseInt(String(newPlan.assignedWorkers), 10),
+          estimatedHours: parseInt(String(newPlan.estimatedHours), 10),
+        },
+      },
+    });
+    setAddPlanDialogOpen(false);
+  };
+
+  const handleAddResource = async () => {
+    await createResource({
+      variables: {
+        input: {
+          ...newResource,
+          capacity: parseInt(String(newResource.capacity), 10),
+          efficiency: parseInt(String(newResource.efficiency), 10),
+        },
+      },
+    });
+    setAddResourceDialogOpen(false);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'planned': return 'bg-blue-100 text-blue-800';
-      case 'in-progress': return 'bg-yellow-100 text-yellow-800';
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'delayed': return 'bg-red-100 text-red-800';
+      case 'PLANNED': return 'bg-blue-100 text-blue-800';
+      case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800';
+      case 'COMPLETED': return 'bg-green-100 text-green-800';
+      case 'DELAYED': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
+      case 'HIGH': return 'bg-red-500';
+      case 'MEDIUM': return 'bg-yellow-500';
+      case 'LOW': return 'bg-green-500';
       default: return 'bg-gray-500';
     }
   };
 
   const getResourceTypeIcon = (type: string) => {
     switch (type) {
-      case 'machine': return '⚙️';
-      case 'worker': return '👷';
-      case 'material': return '📦';
+      case 'MACHINE': return '⚙️';
+      case 'WORKER': return '👷';
+      case 'MATERIAL': return '📦';
       default: return '📋';
     }
   };
@@ -151,12 +207,16 @@ const ProductionScheduler: React.FC = () => {
   };
 
   const getActiveProjects = () => {
-    return productionPlans.filter(plan => plan.status === 'in-progress').length;
+    return productionPlans.filter(plan => plan.status === 'IN_PROGRESS').length;
   };
 
   const getDelayedProjects = () => {
-    return productionPlans.filter(plan => plan.status === 'delayed').length;
+    return productionPlans.filter(plan => plan.status === 'DELAYED').length;
   };
+
+  if (plansLoading || resourcesLoading) return <p>Loading...</p>;
+  if (plansError) return <p>Error: {plansError.message}</p>;
+  if (resourcesError) return <p>Error: {resourcesError.message}</p>;
 
   return (
     <div className="space-y-6">
@@ -167,7 +227,7 @@ const ProductionScheduler: React.FC = () => {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
+        {/* <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -177,9 +237,9 @@ const ProductionScheduler: React.FC = () => {
               <TrendingUp className="h-8 w-8 text-blue-600" />
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
-        <Card>
+        {/* <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -189,9 +249,9 @@ const ProductionScheduler: React.FC = () => {
               <Clock className="h-8 w-8 text-green-600" />
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
-        <Card>
+        {/* <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -201,9 +261,9 @@ const ProductionScheduler: React.FC = () => {
               <Users className="h-8 w-8 text-purple-600" />
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
-        <Card>
+        {/* <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -213,7 +273,7 @@ const ProductionScheduler: React.FC = () => {
               <AlertTriangle className="h-8 w-8 text-red-600" />
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
 
       <Tabs defaultValue="schedule" className="space-y-6">
@@ -226,11 +286,80 @@ const ProductionScheduler: React.FC = () => {
         <TabsContent value="schedule" className="space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Production Plans</CardTitle>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Production Plan
-              </Button>
+            <div className="grid grid-cols-4 md:grid-cols-12 gap-9 items-center w-full">
+            <h1 className="text-3xl font-bold col-span-2 md:col-span-8">Production Plans</h1>
+              <Dialog open={isAddPlanDialogOpen} onOpenChange={setAddPlanDialogOpen}>
+                <DialogTrigger asChild>
+                <div className="col-span-4 md:col-span-2 justify-self-end">
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Production Plan
+                  </Button>
+                </div>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Production Plan</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="productName" className="text-right">Product Name</Label>
+                      <Input id="productName" name="productName" value={newPlan.productName} onChange={(e) => handleInputChange(e, setNewPlan)} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="quantity" className="text-right">Quantity</Label>
+                      <Input id="quantity" name="quantity" type="number" value={newPlan.quantity} onChange={(e) => handleInputChange(e, setNewPlan)} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="startDate" className="text-right">Start Date</Label>
+                      <Input id="startDate" name="startDate" type="date" value={newPlan.startDate} onChange={(e) => handleInputChange(e, setNewPlan)} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="endDate" className="text-right">End Date</Label>
+                      <Input id="endDate" name="endDate" type="date" value={newPlan.endDate} onChange={(e) => handleInputChange(e, setNewPlan)} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="assignedWorkers" className="text-right">Assigned Workers</Label>
+                      <Input id="assignedWorkers" name="assignedWorkers" type="number" value={newPlan.assignedWorkers} onChange={(e) => handleInputChange(e, setNewPlan)} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="estimatedHours" className="text-right">Estimated Hours</Label>
+                      <Input id="estimatedHours" name="estimatedHours" type="number" value={newPlan.estimatedHours} onChange={(e) => handleInputChange(e, setNewPlan)} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="priority" className="text-right">Priority</Label>
+                      <Select onValueChange={(value) => handleSelectChange('priority', value, setNewPlan)} defaultValue={newPlan.priority}>
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="LOW">Low</SelectItem>
+                          <SelectItem value="MEDIUM">Medium</SelectItem>
+                          <SelectItem value="HIGH">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="status" className="text-right">Status</Label>
+                      <Select onValueChange={(value) => handleSelectChange('status', value, setNewPlan)} defaultValue={newPlan.status}>
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PLANNED">Planned</SelectItem>
+                          <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                          <SelectItem value="DELAYED">Delayed</SelectItem>
+                          <SelectItem value="COMPLETED">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" onClick={handleAddPlan}>Add Plan</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -246,7 +375,7 @@ const ProductionScheduler: React.FC = () => {
                           Plan ID: {plan.id}
                         </div>
                         <Badge className={getStatusColor(plan.status)}>
-                          {plan.status.charAt(0).toUpperCase() + plan.status.slice(1)}
+                          {plan.status.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
                         </Badge>
                       </div>
 
@@ -260,8 +389,8 @@ const ProductionScheduler: React.FC = () => {
                           </div>
                           <div>
                             <span className="font-medium">Priority:</span> 
-                            <span className={`ml-1 ${plan.priority === 'high' ? 'text-red-600' : plan.priority === 'medium' ? 'text-yellow-600' : 'text-green-600'}`}>
-                              {plan.priority.charAt(0).toUpperCase() + plan.priority.slice(1)}
+                            <span className={`ml-1 ${plan.priority === 'HIGH' ? 'text-red-600' : plan.priority === 'MEDIUM' ? 'text-yellow-600' : 'text-green-600'}`}>
+                              {plan.priority.charAt(0).toUpperCase() + plan.priority.slice(1).toLowerCase()}
                             </span>
                           </div>
                         </div>
@@ -304,9 +433,56 @@ const ProductionScheduler: React.FC = () => {
 
         <TabsContent value="resources" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Resource Allocation</CardTitle>
-            </CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
+            <div className="grid grid-cols-4 md:grid-cols-12 gap-9 items-center w-full">
+            <h1 className="text-3xl font-bold col-span-2 md:col-span-8">Resource Allocation</h1>
+                <Dialog open={isAddResourceDialogOpen} onOpenChange={setAddResourceDialogOpen}>
+                  <DialogTrigger asChild>
+                  <div className="col-span-4 md:col-span-2 justify-self-end">
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Resource
+                    </Button>
+                  </div>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Resource</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">Name</Label>
+                        <Input id="name" name="name" value={newResource.name} onChange={(e) => handleInputChange(e, setNewResource)} className="col-span-3" />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="capacity" className="text-right">Capacity</Label>
+                        <Input id="capacity" name="capacity" type="number" value={newResource.capacity} onChange={(e) => handleInputChange(e, setNewResource)} className="col-span-3" />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="efficiency" className="text-right">Efficiency (%)</Label>
+                        <Input id="efficiency" name="efficiency" type="number" value={newResource.efficiency} onChange={(e) => handleInputChange(e, setNewResource)} className="col-span-3" />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="type" className="text-right">Type</Label>
+                        <Select onValueChange={(value) => handleSelectChange('type', value, setNewResource)} defaultValue={newResource.type}>
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="MACHINE">Machine</SelectItem>
+                            <SelectItem value="WORKER">Worker</SelectItem>
+                            <SelectItem value="MATERIAL">Material</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" onClick={handleAddResource}>Add Resource</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                </div>
+                </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {resources.map((resource) => (
@@ -363,7 +539,9 @@ const ProductionScheduler: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Capacity Overview</CardTitle>
+              <div className="grid grid-cols-8 md:grid-cols-14 gap-10 items-center w-full">
+              <h1 className="text-3xl font-bold col-span-2 md:col-span-8">Production Plans</h1>
+              </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -374,7 +552,6 @@ const ProductionScheduler: React.FC = () => {
                     </div>
                     <Progress value={78} />
                   </div>
-
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span>Peak Production Hours</span>
@@ -395,7 +572,9 @@ const ProductionScheduler: React.FC = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Capacity Recommendations</CardTitle>
+              <div className="grid grid-cols-4 md:grid-cols-12 gap-9 items-center w-full">
+              <h1 className="text-3xl font-bold col-span-2 md:col-span-8">Capacity Recommendations</h1>
+              </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">

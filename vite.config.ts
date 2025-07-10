@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+// in vite.config.ts
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
@@ -7,7 +8,15 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 8081, // Restore frontend to port 8081
+    proxy: {
+      // Proxy all GraphQL requests to the main backend server
+      '/graphql': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   plugins: [
     react(),

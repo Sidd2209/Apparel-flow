@@ -1,96 +1,125 @@
-
-import React from 'react';
+import React, { createContext, useContext, useState } from 'react';
+import AppSidebar from './AppSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
+import { Bell, Menu } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import AppSidebar from '@/components/AppSidebar';
+import { SidebarProvider, useSidebar } from './ui/sidebar';
 
-const departmentConfig = {
+// --- Context and Providers ---
+const departmentConfig: { [key: string]: { name: string; color: string; emoji: string } } = {
   merchandising: { name: 'Merchandising', color: 'bg-blue-500', emoji: '📋' },
   logistics: { name: 'Logistics', color: 'bg-green-500', emoji: '🚚' },
   procurement: { name: 'Procurement', color: 'bg-orange-500', emoji: '💰' },
   sampling: { name: 'Sampling', color: 'bg-purple-500', emoji: '🧵' },
   management: { name: 'Management', color: 'bg-yellow-500', emoji: '👔' },
 };
+type Department = typeof departmentConfig[keyof typeof departmentConfig];
+interface DepartmentContextType {
+  selectedDepartment: Department | null;
+  setSelectedDepartment: (department: Department | null) => void;
+}
+const DepartmentContext = createContext<DepartmentContextType | undefined>(undefined);
+export const useDepartment = () => {
+  const context = useContext(DepartmentContext);
+  if (!context) throw new Error('useDepartment must be used within a DepartmentProvider');
+  return context;
+};
+const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+  return <DepartmentContext.Provider value={{ selectedDepartment, setSelectedDepartment }}>{children}</DepartmentContext.Provider>;
+};
 
+// --- Main Layout Components ---
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  onNavigate: (view: string) => void;
-  currentView: string;
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, onNavigate, currentView }) => {
+const DashboardHeader: React.FC = () => {
   const { user, logout } = useAuth();
-
-  if (!user) return null;
-
-  const currentDept = departmentConfig[user.department];
+  const { toggleSidebar } = useSidebar();
+  const { selectedDepartment } = useDepartment();
 
   return (
-    <>
-      <AppSidebar onNavigate={onNavigate} currentView={currentView} />
-      <SidebarInset>
-        <header className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-4">
-                <SidebarTrigger />
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  ApparelOS
-                </h1>
-                <Badge className={`${currentDept.color} text-white`}>
-                  {currentDept.emoji} {currentDept.name}
-                </Badge>
-              </div>
-
-              <div className="flex items-center space-x-4">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className={`${currentDept.color} text-white`}>
-                          {user.name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium">{user.name}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
-                        <Badge variant="outline" className="w-fit">
-                          {user.role}
-                        </Badge>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={logout}>
-                      Sign out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+    <header className="bg-white shadow-sm border-b z-10 sticky top-0 flex-shrink-0">
+      <div className="flex justify-between items-center h-16 px-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+            <Menu className="h-6 w-6" />
+          </Button>
+          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            ApparelOS
+          </h1>
+          {selectedDepartment && (
+            <div className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium text-white ${selectedDepartment.color}`}>
+              {selectedDepartment.emoji}
+              <span>{selectedDepartment.name}</span>
             </div>
-          </div>
-        </header>
+          )}
+        </div>
 
-        <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          {children}
-        </main>
-      </SidebarInset>
-    </>
+        {/* <div className="flex-1 mx-8">
+          <Input type="search" placeholder="Search..." className="w-full max-w-md mx-auto" />
+        </div> */}
+
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon"><Bell className="h-5 w-5" /></Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.avatar} alt={user?.name} />
+                  <AvatarFallback className={selectedDepartment ? `${selectedDepartment.color} text-white` : ''}>
+                    {user?.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="hidden md:block text-left">
+                  <div className="text-sm font-medium">{user?.name}</div>
+                  <div className="text-xs text-gray-500">{user?.role}</div>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>Profile</DropdownMenuItem>
+              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+  const { user } = useAuth();
+  if (!user) return null;
+
+  return (
+    <SidebarProvider>
+      <DepartmentProvider>
+        <div className="bg-gray-50 flex h-screen overflow-hidden">
+          <AppSidebar />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <DashboardHeader />
+            <main className="flex-1 h-full overflow-y-auto p-6">
+              {children}
+            </main>
+          </div>
+        </div>
+      </DepartmentProvider>
+    </SidebarProvider>
   );
 };
 
 export default DashboardLayout;
+export { departmentConfig };

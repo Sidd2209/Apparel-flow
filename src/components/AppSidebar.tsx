@@ -1,6 +1,8 @@
-
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
+import { useSidebar } from '@/components/ui/sidebar';
 import {
   Sidebar,
   SidebarContent,
@@ -10,100 +12,110 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from '@/components/ui/sidebar';
-import { Department } from '@/types';
-import { 
-  Calculator, 
-  Truck, 
-  Calendar, 
-  ShoppingCart, 
-  Lightbulb, 
-  CheckSquare, 
-  Package, 
-  BarChart3 
+import {
+  LayoutDashboard,
+  Package,
+  ClipboardList,
+  Calculator,
+  Search,
+  Factory,
+  CheckSquare,
+  Ship,
+  Boxes,
 } from 'lucide-react';
+import { useDepartment, departmentConfig } from './DashboardLayout';
 
-const departmentConfig = {
-  merchandising: { name: 'Merchandising', color: 'bg-blue-500', emoji: '📋' },
-  logistics: { name: 'Logistics', color: 'bg-green-500', emoji: '🚚' },
-  procurement: { name: 'Procurement', color: 'bg-orange-500', emoji: '💰' },
-  sampling: { name: 'Sampling', color: 'bg-purple-500', emoji: '🧵' },
-  management: { name: 'Management', color: 'bg-yellow-500', emoji: '👔' },
-};
+const coreModules = [
+  { key: 'dashboard', to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'orders', to: '/orders', label: 'Order Management', icon: Package },
+  { key: 'product-dev', to: '/product-dev', label: 'Product Development', icon: ClipboardList },
+  { key: 'costing', to: '/costing', label: 'Costing Calculator', icon: Calculator },
+  { key: 'sourcing', to: '/sourcing', label: 'Sourcing Management', icon: Search },
+  { key: 'production', to: '/production', label: 'Production Scheduler', icon: Factory },
+  { key: 'quality', to: '/quality', label: 'Quality Control', icon: CheckSquare },
+  { key: 'shipping', to: '/shipping', label: 'Packing & Shipping', icon: Ship },
+  { key: 'inventory', to: '/inventory', label: 'Inventory', icon: Boxes },
+];
 
-interface AppSidebarProps {
-  onNavigate: (view: string) => void;
-  currentView: string;
-}
-
-const AppSidebar: React.FC<AppSidebarProps> = ({ onNavigate, currentView }) => {
-  const { user, switchDepartment } = useAuth();
-  const { state } = useSidebar();
-  const collapsed = state === 'collapsed';
+const AppSidebar: React.FC = () => {
+  const { user } = useAuth();
+  const { state: sidebarState } = useSidebar();
+  const { setSelectedDepartment } = useDepartment();
+  const collapsed = sidebarState === 'collapsed';
 
   if (!user) return null;
 
-  const coreModules = [
-    { key: 'orders', label: 'Order Management', icon: ShoppingCart },
-    { key: 'product-dev', label: 'Product Development', icon: Lightbulb },
-    { key: 'costing', label: 'Costing Calculator', icon: Calculator },
-    { key: 'sourcing', label: 'Sourcing Management', icon: Truck },
-    { key: 'production', label: 'Production Scheduler', icon: Calendar },
-    { key: 'quality', label: 'Quality Control', icon: CheckSquare },
-    { key: 'shipping', label: 'Packing & Shipping', icon: Package },
-    { key: 'inventory', label: 'Inventory Management', icon: BarChart3 },
-  ];
-
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible="icon">
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>
-            {!collapsed && "Departments"}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {Object.entries(departmentConfig).map(([key, config]) => {
-                const isActive = user.department === key;
-                return (
-                  <SidebarMenuItem key={key}>
-                    <SidebarMenuButton
-                      onClick={() => switchDepartment(key as Department)}
-                      className={`${isActive ? 'bg-muted text-primary font-medium' : 'hover:bg-muted/50'}`}
-                    >
-                      <span className="text-lg mr-2">{config.emoji}</span>
-                      {!collapsed && <span>{config.name}</span>}
+    <aside
+      className={cn(
+        'bg-sidebar border-r flex flex-col transition-all duration-300 ease-in-out',
+        collapsed ? 'w-20' : 'w-64'
+      )}
+    >
+      <div className="p-4 border-b flex items-center justify-center">
+        {/* Logo or branding can go here */}
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div className="py-4">
+          <SidebarGroup>
+            <SidebarGroupLabel>
+              {!collapsed && 'Departments'}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {Object.entries(departmentConfig).map(([key, department]) => {
+                  const isActive = user.department === key;
+                  return (
+                    <SidebarMenuItem key={key}>
+                      <SidebarMenuButton
+                        onClick={() => setSelectedDepartment(department)}
+                        className={cn(
+                          'w-full justify-start rounded-md p-2 text-white hover:text-white dark:text-gray-300 dark:hover:text-white',
+                          isActive && 'text-white dark:text-white font-medium'
+                        )}
+                      >
+                        <span className="text-lg mr-2">{department.emoji}</span>
+                        {!collapsed && <span>{department.name}</span>}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup>
+            <SidebarGroupLabel>
+              {!collapsed && 'Core Modules'}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {coreModules.map((module) => (
+                  <SidebarMenuItem key={module.key}>
+                    <SidebarMenuButton asChild className="w-full justify-start">
+                      <NavLink
+                        to={module.to}
+                        end={module.to === '/'}
+                        className={({ isActive }) =>
+                          cn(
+                            'flex items-center w-full p-2 rounded-md text-white hover:text-white dark:text-gray-300 dark:hover:text-white',
+                            isActive && 'text-white dark:text-white font-medium'
+                          )
+                        }
+                      >
+                        <module.icon className="h-5 w-5 mr-2" />
+                        {!collapsed && <span>{module.label}</span>}
+                      </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>
-            {!collapsed && "Core Modules"}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {coreModules.map((module) => (
-                <SidebarMenuItem key={module.key}>
-                  <SidebarMenuButton
-                    onClick={() => onNavigate(module.key)}
-                    className={`${currentView === module.key ? 'bg-muted text-primary font-medium' : 'hover:bg-muted/50'}`}
-                  >
-                    <module.icon className="h-5 w-5 mr-2" />
-                    {!collapsed && <span>{module.label}</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-    </Sidebar>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </div>
+      </div>
+    </aside>
   );
 };
 

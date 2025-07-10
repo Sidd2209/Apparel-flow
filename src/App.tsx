@@ -1,27 +1,47 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { AuthProvider } from './contexts/AuthContext';
+import Index from './pages/Index';
+import NotFound from './pages/NotFound';
+
+// Import all page components
+import Dashboard from './components/Dashboard';
+import OrderManagement from './components/OrderManagement';
+import ProductDevelopment from './components/ProductDevelopment';
+import CostingCalculator from './components/CostingCalculator';
+import SourcingManagement from './components/SourcingManagement';
+import ProductionScheduler from './components/ProductionScheduler';
+import QualityControl from './components/QualityControl';
+import ShippingModule from './components/ShippingModule';
+import InventoryManagement from './components/InventoryManagement';
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <TooltipProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />}>
+              <Route index element={<Dashboard />} />
+              <Route path="product-dev" element={<ProductDevelopment />} />
+              <Route path="orders" element={<OrderManagement />} />
+              <Route path="costing" element={<CostingCalculator />} />
+              <Route path="sourcing" element={<SourcingManagement />} />
+              <Route path="production" element={<ProductionScheduler />} />
+              <Route path="quality" element={<QualityControl />} />
+              <Route path="shipping" element={<ShippingModule />} />
+              <Route path="inventory" element={<InventoryManagement />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
+  </TooltipProvider>
 );
 
 export default App;

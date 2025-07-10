@@ -1,17 +1,62 @@
-
 import React, { useState } from 'react';
+import { gql, useQuery, useMutation } from '@apollo/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, AlertTriangle, Package, TrendingUp, Search } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BarChart3, AlertTriangle, Package, TrendingUp, Search, Plus } from 'lucide-react';
+
+const GET_INVENTORY_ITEMS = gql`
+  query GetInventoryItems {
+    inventoryItems {
+      id
+      name
+      category
+      currentStock
+      minStock
+      maxStock
+      unit
+      unitCost
+      totalValue
+      location
+      lastUpdated
+      supplier
+    }
+  }
+`;
+
+const CREATE_INVENTORY_ITEM = gql`
+  mutation CreateInventoryItem($input: CreateInventoryItemInput!) {
+    createInventoryItem(input: $input) {
+      id
+    }
+  }
+`;
+
+const UPDATE_INVENTORY_ITEM = gql`
+  mutation UpdateInventoryItem($id: ID!, $input: UpdateInventoryItemInput!) {
+    updateInventoryItem(id: $id, input: $input) {
+      id
+    }
+  }
+`;
+
+const DELETE_INVENTORY_ITEM = gql`
+  mutation DeleteInventoryItem($id: ID!) {
+    deleteInventoryItem(id: $id) {
+      id
+    }
+  }
+`;
 
 interface InventoryItem {
   id: string;
   name: string;
-  category: 'raw-materials' | 'wip' | 'finished-goods';
+  category: 'RAW_MATERIALS' | 'WIP' | 'FINISHED_GOODS';
   currentStock: number;
   minStock: number;
   maxStock: number;
@@ -21,66 +66,107 @@ interface InventoryItem {
   location: string;
   lastUpdated: string;
   supplier?: string;
+  __typename?: string;
 }
 
-const InventoryManagement: React.FC = () => {
-  const [inventory, setInventory] = useState<InventoryItem[]>([
-    {
-      id: 'INV-001',
-      name: 'Cotton Fabric - White',
-      category: 'raw-materials',
-      currentStock: 500,
-      minStock: 200,
-      maxStock: 1000,
-      unit: 'yards',
-      unitCost: 3.50,
-      totalValue: 1750,
-      location: 'Warehouse A - Section 1',
-      lastUpdated: '2024-01-15',
-      supplier: 'Cotton Mills Ltd'
-    },
-    {
-      id: 'INV-002',
-      name: 'Summer T-Shirt - Size M',
-      category: 'finished-goods',
-      currentStock: 150,
-      minStock: 50,
-      maxStock: 500,
-      unit: 'pieces',
-      unitCost: 12.00,
-      totalValue: 1800,
-      location: 'Warehouse B - Section 2',
-      lastUpdated: '2024-01-14'
-    },
-    {
-      id: 'INV-003',
-      name: 'Denim Jacket - In Progress',
-      category: 'wip',
-      currentStock: 45,
-      minStock: 20,
-      maxStock: 100,
-      unit: 'pieces',
-      unitCost: 25.00,
-      totalValue: 1125,
-      location: 'Production Floor - Station 3',
-      lastUpdated: '2024-01-13'
-    },
-    {
-      id: 'INV-004',
-      name: 'Polyester Thread - Black',
-      category: 'raw-materials',
-      currentStock: 25,
-      minStock: 100,
-      maxStock: 500,
-      unit: 'spools',
-      unitCost: 2.25,
-      totalValue: 56.25,
-      location: 'Warehouse A - Section 3',
-      lastUpdated: '2024-01-12',
-      supplier: 'Thread Supply Co'
-    }
-  ]);
+type FormDataType = Omit<InventoryItem, 'id' | 'totalValue' | 'lastUpdated'> | InventoryItem | null;
 
+const EMPTY_FORM_DATA: Omit<InventoryItem, 'id' | 'totalValue' | 'lastUpdated'> = {
+  name: '',
+  category: 'RAW_MATERIALS',
+  currentStock: 0,
+  minStock: 0,
+  maxStock: 0,
+  unit: '',
+  unitCost: 0,
+  location: '',
+  supplier: '',
+};
+
+const InventoryManagement: React.FC = () => {
+  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState<FormDataType>(null);
+
+  const { data, loading, error, refetch } = useQuery(GET_INVENTORY_ITEMS);
+  const [createInventoryItem, { loading: creating }] = useMutation(CREATE_INVENTORY_ITEM, {
+    refetchQueries: [{ query: GET_INVENTORY_ITEMS }],
+    onCompleted: () => setDialogOpen(false),
+    onError: (err) => {
+      console.error('Error creating inventory item:', err);
+    },
+  });
+  const [updateInventoryItem] = useMutation(UPDATE_INVENTORY_ITEM, {
+    refetchQueries: [{ query: GET_INVENTORY_ITEMS }],
+    onCompleted: () => setDialogOpen(false),
+  });
+  const [deleteInventoryItem] = useMutation(DELETE_INVENTORY_ITEM, {
+    refetchQueries: [{ query: GET_INVENTORY_ITEMS }],
+  });
+
+  const handleOpenDialog = (item: InventoryItem | null) => {
+    if (item) {
+      setIsEditing(true);
+      setFormData(item);
+    } else {
+      setIsEditing(false);
+      setFormData(EMPTY_FORM_DATA);
+    }
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setFormData(null); // Always clear form data on close
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!formData) return;
+    const { name, value, type } = e.target;
+    const parsedValue = type === 'number' ? (value === '' ? '' : parseFloat(value)) : value;
+    setFormData(prev => prev ? { ...prev, [name]: parsedValue } : null);
+  };
+
+  const handleSelectChange = (value: InventoryItem['category']) => {
+    if (!formData) return;
+    setFormData(prev => prev ? { ...prev, category: value } : null);
+  };
+
+  const handleSubmit = async () => {
+    if (!formData) return;
+
+    if (isEditing && 'id' in formData) {
+      // This is an update
+      const { id, __typename, totalValue, lastUpdated, ...input } = formData;
+      const parsedInput = {
+        ...input,
+        currentStock: parseInt(String(input.currentStock), 10) || 0,
+        minStock: parseInt(String(input.minStock), 10) || 0,
+        maxStock: parseInt(String(input.maxStock), 10) || 0,
+        unitCost: parseFloat(String(input.unitCost)) || 0,
+      };
+      if (!parsedInput.supplier) {
+        delete (parsedInput as Partial<typeof parsedInput>).supplier;
+      }
+      await updateInventoryItem({ variables: { id, input: parsedInput } });
+    } else {
+      // This is a create
+      const { id, __typename, totalValue, lastUpdated, ...input } = formData as any; // Cast to remove properties
+      const payload = {
+        ...input,
+        currentStock: parseInt(String(input.currentStock), 10) || 0,
+        minStock: parseInt(String(input.minStock), 10) || 0,
+        maxStock: parseInt(String(input.maxStock), 10) || 0,
+        unitCost: parseFloat(String(input.unitCost)) || 0,
+      };
+      if (!payload.supplier) {
+        delete (payload as Partial<typeof payload>).supplier;
+      }
+      await createInventoryItem({ variables: { input: payload } });
+    }
+  };
+
+  const inventory: InventoryItem[] = data?.inventoryItems || [];
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
@@ -101,16 +187,16 @@ const InventoryManagement: React.FC = () => {
 
   const getCategoryColor = (category: string) => {
     const colors = {
-      'raw-materials': 'bg-blue-100 text-blue-800',
-      'wip': 'bg-purple-100 text-purple-800',
-      'finished-goods': 'bg-green-100 text-green-800'
+      'RAW_MATERIALS': 'bg-blue-100 text-blue-800',
+      'WIP': 'bg-purple-100 text-purple-800',
+      'FINISHED_GOODS': 'bg-green-100 text-green-800'
     };
     return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
   const filteredInventory = inventory.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.location.toLowerCase().includes(searchTerm.toLowerCase());
+                         (item.location && item.location.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
     
     return matchesSearch && matchesCategory;
@@ -120,20 +206,26 @@ const InventoryManagement: React.FC = () => {
   const excessStockItems = inventory.filter(item => getStockStatus(item) === 'excess');
   const totalValue = inventory.reduce((sum, item) => sum + item.totalValue, 0);
 
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <BarChart3 className="h-6 w-6 text-indigo-600" />
-        <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
+      <div className="grid grid-cols-4 md:grid-cols-10 gap-4 items-center w-full">
+      <div className="flex items-center">
+        <BarChart3 className="h-8 w-8 text-indigo-800" />
+        <h1 className="text-3xl font-bold text-gray-900 whitespace-nowrap">
+          Inventory Management
+        </h1>
       </div>
-
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="overview">Inventory Overview</TabsTrigger>
-          <TabsTrigger value="alerts">Stock Alerts</TabsTrigger>
-          <TabsTrigger value="movements">Stock Movements</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
+      </div>  
+      <Tabs defaultValue="overview" className="space-y-6 color=black">
+      <TabsList className="w-full grid grid-cols-4 gap-2">
+        <TabsTrigger value="overview">Inventory Overview</TabsTrigger>
+        <TabsTrigger value="alerts">Stock Alerts</TabsTrigger>
+        <TabsTrigger value="movements">Stock Movements</TabsTrigger>
+        <TabsTrigger value="analytics">Analytics</TabsTrigger>
+      </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -158,8 +250,9 @@ const InventoryManagement: React.FC = () => {
           </div>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Inventory Items</CardTitle>
+              <Button onClick={() => handleOpenDialog(null)}><Plus className="h-4 w-4 mr-2" />Add Item</Button>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -184,9 +277,9 @@ const InventoryManagement: React.FC = () => {
                     className="w-48 p-2 border rounded-md"
                   >
                     <option value="all">All Categories</option>
-                    <option value="raw-materials">Raw Materials</option>
-                    <option value="wip">Work in Progress</option>
-                    <option value="finished-goods">Finished Goods</option>
+                    <option value="RAW_MATERIALS">Raw Materials</option>
+                    <option value="WIP">Work in Progress</option>
+                    <option value="FINISHED_GOODS">Finished Goods</option>
                   </select>
                 </div>
               </div>
@@ -200,7 +293,7 @@ const InventoryManagement: React.FC = () => {
                         <div className="text-sm text-gray-600">{item.location}</div>
                         <div className="flex gap-2 mt-2">
                           <Badge className={getCategoryColor(item.category)}>
-                            {item.category.replace('-', ' ').toUpperCase()}
+                            {item.category.replace('_', ' ').toUpperCase()}
                           </Badge>
                           <Badge className={getStatusColor(getStockStatus(item))}>
                             {getStockStatus(item).toUpperCase()}
@@ -227,7 +320,7 @@ const InventoryManagement: React.FC = () => {
 
                       <div>
                         <div className="font-medium text-sm text-gray-500">Last Updated</div>
-                        <div className="text-sm">{item.lastUpdated}</div>
+                        <div className="text-sm">{new Date(item.lastUpdated).toLocaleDateString()}</div>
                         {item.supplier && (
                           <>
                             <div className="font-medium text-sm text-gray-500 mt-1">Supplier</div>
@@ -237,7 +330,8 @@ const InventoryManagement: React.FC = () => {
                       </div>
 
                       <div className="flex flex-col gap-2">
-                        <Button variant="outline" size="sm">Adjust Stock</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleOpenDialog(item)}>Edit</Button>
+                        <Button variant="outline" size="sm" onClick={() => deleteInventoryItem({ variables: { id: item.id } })}>Delete</Button>
                         <Button variant="outline" size="sm">View History</Button>
                         <Button variant="outline" size="sm">Reorder</Button>
                       </div>
@@ -321,63 +415,8 @@ const InventoryManagement: React.FC = () => {
               <CardTitle>Recent Stock Movements</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <Card className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <div className="font-medium">Cotton Fabric - White</div>
-                      <div className="text-sm text-gray-600">Stock In</div>
-                    </div>
-                    <div>
-                      <div className="text-green-600">+200 yards</div>
-                      <div className="text-sm text-gray-600">From supplier</div>
-                    </div>
-                    <div>
-                      <div className="text-sm">2024-01-15</div>
-                    </div>
-                    <div>
-                      <div className="text-sm">John Smith</div>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <div className="font-medium">Summer T-Shirt - Size M</div>
-                      <div className="text-sm text-gray-600">Stock Out</div>
-                    </div>
-                    <div>
-                      <div className="text-red-600">-50 pieces</div>
-                      <div className="text-sm text-gray-600">To shipping</div>
-                    </div>
-                    <div>
-                      <div className="text-sm">2024-01-14</div>
-                    </div>
-                    <div>
-                      <div className="text-sm">Sarah Johnson</div>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <div className="font-medium">Polyester Thread - Black</div>
-                      <div className="text-sm text-gray-600">Adjustment</div>
-                    </div>
-                    <div>
-                      <div className="text-blue-600">-5 spools</div>
-                      <div className="text-sm text-gray-600">Inventory count</div>
-                    </div>
-                    <div>
-                      <div className="text-sm">2024-01-13</div>
-                    </div>
-                    <div>
-                      <div className="text-sm">Mike Chen</div>
-                    </div>
-                  </div>
-                </Card>
+              <div className="text-center text-gray-500 py-8">
+                Stock movement history will be implemented here.
               </div>
             </CardContent>
           </Card>
@@ -397,19 +436,19 @@ const InventoryManagement: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <span>Raw Materials</span>
                     <span className="font-semibold">
-                      {inventory.filter(i => i.category === 'raw-materials').length} items
+                      {inventory.filter(i => i.category === 'RAW_MATERIALS').length} items
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Work in Progress</span>
                     <span className="font-semibold">
-                      {inventory.filter(i => i.category === 'wip').length} items
+                      {inventory.filter(i => i.category === 'WIP').length} items
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Finished Goods</span>
                     <span className="font-semibold">
-                      {inventory.filter(i => i.category === 'finished-goods').length} items
+                      {inventory.filter(i => i.category === 'FINISHED_GOODS').length} items
                     </span>
                   </div>
                 </div>
@@ -425,21 +464,21 @@ const InventoryManagement: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <span>Raw Materials</span>
                     <span className="font-semibold">
-                      ${inventory.filter(i => i.category === 'raw-materials')
+                      ${inventory.filter(i => i.category === 'RAW_MATERIALS')
                         .reduce((sum, item) => sum + item.totalValue, 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Work in Progress</span>
                     <span className="font-semibold">
-                      ${inventory.filter(i => i.category === 'wip')
+                      ${inventory.filter(i => i.category === 'WIP')
                         .reduce((sum, item) => sum + item.totalValue, 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Finished Goods</span>
                     <span className="font-semibold">
-                      ${inventory.filter(i => i.category === 'finished-goods')
+                      ${inventory.filter(i => i.category === 'FINISHED_GOODS')
                         .reduce((sum, item) => sum + item.totalValue, 0).toLocaleString()}
                     </span>
                   </div>
@@ -471,6 +510,35 @@ const InventoryManagement: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCloseDialog()}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{isEditing ? 'Edit Inventory Item' : 'Add New Inventory Item'}</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Input name="name" placeholder="Item Name" value={formData?.name || ''} onChange={handleInputChange} />
+            <Select onValueChange={handleSelectChange} value={formData?.category || ''}>
+              <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="RAW_MATERIALS">Raw Materials</SelectItem>
+                <SelectItem value="WIP">Work In Progress</SelectItem>
+                <SelectItem value="FINISHED_GOODS">Finished Goods</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input name="currentStock" placeholder="Current Stock" type="number" value={formData?.currentStock || ''} onChange={handleInputChange} />
+            <Input name="minStock" placeholder="Min Stock" type="number" value={formData?.minStock || ''} onChange={handleInputChange} />
+            <Input name="maxStock" placeholder="Max Stock" type="number" value={formData?.maxStock || ''} onChange={handleInputChange} />
+            <Input name="unit" placeholder="Unit (e.g., kg, meters, units)" value={formData?.unit || ''} onChange={handleInputChange} />
+            <Input name="unitCost" placeholder="Unit Cost" type="number" value={formData?.unitCost || ''} onChange={handleInputChange} />
+            <Input name="location" placeholder="Location" value={formData?.location || ''} onChange={handleInputChange} />
+            <Input name="supplier" placeholder="Supplier (Optional)" value={formData?.supplier || ''} onChange={handleInputChange} />
+          </div>
+          <DialogFooter>
+            <Button type="submit" onClick={handleSubmit} disabled={creating}>
+              {creating ? 'Adding...' : (isEditing ? 'Update Item' : 'Add Item')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,18 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation } from '@apollo/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calculator, DollarSign, Plus, Trash2 } from 'lucide-react';
+import { Calculator, Plus, Trash2, Loader2, AlertCircle, Save } from 'lucide-react';
+import { GET_COSTING_SHEETS, SAVE_COSTING_SHEET, DELETE_COSTING_SHEET } from '@/queries';
 
-interface CostBreakdown {
-  materials: MaterialCost[];
-  labor: LaborCost[];
-  overheads: OverheadCost[];
-}
-
+// Interfaces matching the GraphQL schema
 interface MaterialCost {
   id: string;
   name: string;
@@ -21,6 +18,7 @@ interface MaterialCost {
   unitCost: number;
   currency: string;
   total: number;
+  __typename?: string;
 }
 
 interface LaborCost {
@@ -30,6 +28,7 @@ interface LaborCost {
   ratePerHour: number;
   currency: string;
   total: number;
+  __typename?: string;
 }
 
 interface OverheadCost {
@@ -37,699 +36,371 @@ interface OverheadCost {
   category: string;
   amount: number;
   currency: string;
-  type: 'fixed' | 'percentage';
+  type: 'FIXED' | 'PERCENTAGE';
+  __typename?: string;
+}
+
+interface CostBreakdown {
+  materials: MaterialCost[];
+  labor: LaborCost[];
+  overheads: OverheadCost[];
+  __typename?: string;
 }
 
 interface TaxConfiguration {
   vatRate: number;
   customsDuty: number;
   otherTaxes: number;
-  currency: string;
+  __typename?: string;
+}
+
+interface CostingSheet {
+    id: string;
+    name: string;
+    costBreakdown: CostBreakdown;
+    taxConfig: TaxConfiguration;
+    profitMargin: number;
+    selectedCurrency: string;
+    __typename?: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 const CostingCalculator: React.FC = () => {
-  const [selectedCurrency, setSelectedCurrency] = useState('USD');
-  const [exchangeRates] = useState({
-    USD: 1,
-    EUR: 0.85,
-    GBP: 0.73,
-    INR: 82.5,
-    CNY: 7.2
+  const { data, loading, error, refetch } = useQuery(GET_COSTING_SHEETS);
+  const [saveCostingSheet, { loading: isSaving }] = useMutation(SAVE_COSTING_SHEET, {
+    refetchQueries: [{ query: GET_COSTING_SHEETS }],
+    onError: (err) => {
+      alert(`Failed to save sheet: ${err.message}`);
+    }
+  });
+  const [deleteCostingSheet] = useMutation(DELETE_COSTING_SHEET, {
+    refetchQueries: [{ query: GET_COSTING_SHEETS }],
   });
 
-  const [taxConfig, setTaxConfig] = useState<TaxConfiguration>({
-    vatRate: 10,
-    customsDuty: 5,
-    otherTaxes: 2,
-    currency: 'USD'
-  });
+  const [activeSheetId, setActiveSheetId] = useState<string | null>(null);
+  const [localSheetData, setLocalSheetData] = useState<CostingSheet | null>(null);
 
-  const [costBreakdown, setCostBreakdown] = useState<CostBreakdown>({
-    materials: [
-      {
-        id: '1',
-        name: 'Cotton Fabric',
-        quantity: 2.5,
-        unit: 'yards',
-        unitCost: 8.50,
-        currency: 'USD',
-        total: 21.25
+  useEffect(() => {
+    if (data?.costingSheets && data.costingSheets.length > 0) {
+      if (!activeSheetId || !data.costingSheets.find(s => s.id === activeSheetId)) {
+        setActiveSheetId(data.costingSheets[0].id);
       }
-    ],
-    labor: [
-      {
-        id: '1',
-        operation: 'Cutting',
-        timeMinutes: 15,
-        ratePerHour: 12,
-        currency: 'USD',
-        total: 3.00
-      }
-    ],
-    overheads: [
-      {
-        id: '1',
-        category: 'Factory Overhead',
-        amount: 15,
-        currency: 'USD',
-        type: 'percentage'
-      }
-    ]
-  });
+    } else if (data?.costingSheets?.length === 0) {
+      setActiveSheetId(null);
+      setLocalSheetData(null);
+    }
+  }, [data, activeSheetId]);
 
-  const [profitMargin, setProfitMargin] = useState(30);
+  useEffect(() => {
+    if (activeSheetId && data?.costingSheets) {
+      const sheet = data.costingSheets.find(s => s.id === activeSheetId);
+      setLocalSheetData(sheet ? JSON.parse(JSON.stringify(sheet)) : null);
+    }
+  }, [activeSheetId, data]);
 
-  const convertCurrency = (amount: number, fromCurrency: string, toCurrency: string) => {
-    if (fromCurrency === toCurrency) return amount;
-    const usdAmount = amount / exchangeRates[fromCurrency as keyof typeof exchangeRates];
-    return usdAmount * exchangeRates[toCurrency as keyof typeof exchangeRates];
+  const handleSave = () => {
+    if (!localSheetData || !localSheetData.id) return;
+
+    const { id, __typename, costBreakdown, taxConfig, createdAt, updatedAt, ...rest } = localSheetData;
+
+    const input = {
+      ...rest,
+      costBreakdown: {
+        materials: costBreakdown.materials.map(({ id: _id, __typename: _t, total: _total, ...m }) => m),
+        labor: costBreakdown.labor.map(({ id: _id, __typename: _t, total: _total, ...l }) => l),
+        overheads: costBreakdown.overheads.map(({ id: _id, __typename: _t, ...o }) => o),
+      },
+      taxConfig: {
+        vatRate: Number(taxConfig.vatRate),
+        customsDuty: Number(taxConfig.customsDuty),
+        otherTaxes: Number(taxConfig.otherTaxes),
+      },
+    };
+
+    saveCostingSheet({ variables: { id: localSheetData.id, input } });
   };
 
-  const calculateTotalMaterialCost = () => {
-    return costBreakdown.materials.reduce((sum, material) => {
-      const convertedCost = convertCurrency(material.total, material.currency, selectedCurrency);
-      return sum + convertedCost;
-    }, 0);
+  const handleFieldChange = (path: string, value: any) => {
+    setLocalSheetData(prev => {
+        if (!prev) return null;
+        const newState = JSON.parse(JSON.stringify(prev));
+        const keys = path.split('.');
+        let current: any = newState;
+        for (let i = 0; i < keys.length - 1; i++) {
+            current = current[keys[i]];
+        }
+        current[keys[keys.length - 1]] = value;
+        return newState;
+    });
   };
 
-  const calculateTotalLaborCost = () => {
-    return costBreakdown.labor.reduce((sum, labor) => {
-      const convertedCost = convertCurrency(labor.total, labor.currency, selectedCurrency);
-      return sum + convertedCost;
-    }, 0);
+  const handleListItemChange = (listName: 'materials' | 'labor' | 'overheads', index: number, field: string, value: any) => {
+    setLocalSheetData(prev => {
+        if (!prev) return null;
+        const newState = JSON.parse(JSON.stringify(prev));
+        const item = newState.costBreakdown[listName][index];
+        item[field] = value;
+
+        if (listName === 'materials') {
+            item.total = (Number(item.quantity) || 0) * (Number(item.unitCost) || 0);
+        }
+        if (listName === 'labor') {
+            item.total = ((Number(item.timeMinutes) || 0) / 60) * (Number(item.ratePerHour) || 0);
+        }
+        
+        return newState;
+    });
   };
 
+  const addListItem = (listName: 'materials' | 'labor' | 'overheads') => {
+    setLocalSheetData(prev => {
+        if (!prev) return null;
+        const newState = JSON.parse(JSON.stringify(prev));
+        const selectedCurrency = newState.selectedCurrency;
+        let newItem;
+        if (listName === 'materials') {
+            newItem = { id: Date.now().toString(), name: '', quantity: 0, unit: 'pieces', unitCost: 0, currency: selectedCurrency, total: 0 };
+        } else if (listName === 'labor') {
+            newItem = { id: Date.now().toString(), operation: '', timeMinutes: 0, ratePerHour: 0, currency: selectedCurrency, total: 0 };
+        } else {
+            newItem = { id: Date.now().toString(), category: '', amount: 0, currency: selectedCurrency, type: 'FIXED' };
+        }
+        newState.costBreakdown[listName].push(newItem);
+        return newState;
+    });
+  };
+
+  const removeListItem = (listName: 'materials' | 'labor' | 'overheads', id: string) => {
+    setLocalSheetData(prev => {
+        if (!prev) return null;
+        const newState = JSON.parse(JSON.stringify(prev));
+        newState.costBreakdown[listName] = newState.costBreakdown[listName].filter(item => item.id !== id);
+        return newState;
+    });
+  };
+  
+  const createNewSheet = () => {
+    const input = {
+      name: `New Sheet ${new Date().toLocaleTimeString()}`,
+      profitMargin: 30,
+      selectedCurrency: 'USD',
+      taxConfig: { vatRate: 10, customsDuty: 5, otherTaxes: 2 },
+      costBreakdown: { materials: [], labor: [], overheads: [] },
+    };
+    saveCostingSheet({
+      variables: { input },
+      onCompleted: (res) => {
+        refetch().then(() => setActiveSheetId(res.saveCostingSheet.id));
+      }
+    });
+  };
+  
+  const handleDeleteSheet = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this sheet?')) {
+        deleteCostingSheet({ variables: { id } });
+    }
+  };
+
+  const calculateTotalMaterialCost = () => localSheetData?.costBreakdown.materials.reduce((sum, m) => sum + m.total, 0) || 0;
+  const calculateTotalLaborCost = () => localSheetData?.costBreakdown.labor.reduce((sum, l) => sum + l.total, 0) || 0;
   const calculateTotalOverheadCost = () => {
+    if (!localSheetData) return 0;
     const baseCost = calculateTotalMaterialCost() + calculateTotalLaborCost();
-    return costBreakdown.overheads.reduce((sum, overhead) => {
-      let overheadAmount = 0;
-      if (overhead.type === 'percentage') {
-        overheadAmount = (baseCost * overhead.amount) / 100;
-      } else {
-        overheadAmount = convertCurrency(overhead.amount, overhead.currency, selectedCurrency);
-      }
-      return sum + overheadAmount;
-    }, 0);
+    return localSheetData.costBreakdown.overheads.reduce((sum, o) => sum + (o.type === 'PERCENTAGE' ? (baseCost * o.amount) / 100 : o.amount), 0);
   };
-
-  const calculateSubtotal = () => {
-    return calculateTotalMaterialCost() + calculateTotalLaborCost() + calculateTotalOverheadCost();
-  };
-
+  const calculateSubtotal = () => calculateTotalMaterialCost() + calculateTotalLaborCost() + calculateTotalOverheadCost();
   const calculateTaxes = () => {
-    const subtotal = calculateSubtotal();
-    const vatAmount = (subtotal * taxConfig.vatRate) / 100;
-    const customsAmount = (subtotal * taxConfig.customsDuty) / 100;
-    const otherTaxAmount = (subtotal * taxConfig.otherTaxes) / 100;
-    return vatAmount + customsAmount + otherTaxAmount;
+      if (!localSheetData) return 0;
+      const { vatRate, customsDuty, otherTaxes } = localSheetData.taxConfig;
+      return (calculateSubtotal() * (vatRate / 100)) + (calculateSubtotal() * (customsDuty / 100)) + (calculateSubtotal() * (otherTaxes / 100));
   };
+  const calculateTotalCost = () => calculateSubtotal() + calculateTaxes();
+  const calculateSellingPrice = () => localSheetData ? calculateTotalCost() * (1 + localSheetData.profitMargin / 100) : 0;
 
-  const calculateTotalCost = () => {
-    return calculateSubtotal() + calculateTaxes();
-  };
-
-  const calculateSellingPrice = () => {
-    const totalCost = calculateTotalCost();
-    return totalCost * (1 + profitMargin / 100);
-  };
-
-  const addMaterial = () => {
-    const newMaterial: MaterialCost = {
-      id: Date.now().toString(),
-      name: '',
-      quantity: 0,
-      unit: 'pieces',
-      unitCost: 0,
-      currency: selectedCurrency,
-      total: 0
-    };
-    setCostBreakdown(prev => ({
-      ...prev,
-      materials: [...prev.materials, newMaterial]
-    }));
-  };
-
-  const addLabor = () => {
-    const newLabor: LaborCost = {
-      id: Date.now().toString(),
-      operation: '',
-      timeMinutes: 0,
-      ratePerHour: 0,
-      currency: selectedCurrency,
-      total: 0
-    };
-    setCostBreakdown(prev => ({
-      ...prev,
-      labor: [...prev.labor, newLabor]
-    }));
-  };
-
-  const addOverhead = () => {
-    const newOverhead: OverheadCost = {
-      id: Date.now().toString(),
-      category: '',
-      amount: 0,
-      currency: selectedCurrency,
-      type: 'fixed'
-    };
-    setCostBreakdown(prev => ({
-      ...prev,
-      overheads: [...prev.overheads, newOverhead]
-    }));
-  };
-
-  const currencySymbol = {
-    USD: '$',
-    EUR: '€',
-    GBP: '£',
-    INR: '₹',
-    CNY: '¥'
-  };
+  const currencySymbol = { USD: '$', EUR: '€', GBP: '£', INR: '₹', CNY: '¥' };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Calculator className="h-6 w-6 text-blue-600" />
-        <h1 className="text-3xl font-bold text-gray-900">Multi-Currency Costing Calculator</h1>
+    <div className="h-full flex flex-col">
+      {loading && (
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading Costing Data...</span>
+        </div>
+      )}
+      {error && (
+        <div className="flex items-center justify-center h-full text-red-600">
+          <AlertCircle className="h-8 w-8 mr-2" />
+          <span>Error loading data: {error.message}</span>
+        </div>
+      )}
+      {!loading && !error && !localSheetData && (
+        <div className="flex flex-col items-center justify-center h-full">
+            <h2 className="text-2xl font-semibold mb-4">No Costing Sheets Found</h2>
+            <p className="text-gray-600 mb-6">Get started by creating your first costing sheet.</p>
+            <Button onClick={createNewSheet}><Plus className="h-4 w-4 mr-2" />Create New Costing Sheet</Button>
+        </div>
+      )}
+      {!loading && !error && localSheetData && (
+        <div className="flex flex-col flex-grow p-6 space-y-8">
+          <div className="grid grid-cols-4 md:grid-cols-10 gap-6 items-center w-full">
+            <div className="flex items-center gap-x-2 col-span-6 md:col-span-12">
+                <Calculator className="h-8 w-8 text-blue-600" />
+                <h1 className="text-3xl font-bold text-gray-900">Costing Calculator</h1>
+            
+      <div className="flex items-center justify-between w-full gap-6">
+                 {/* Left group: Select */}
+         <Select value={activeSheetId || ''} onValueChange={id => { setActiveSheetId(id); }}>
+        <SelectTrigger className="w-[570px] gap-2">
+          <SelectValue placeholder="Select a sheet..." />
+        </SelectTrigger>
+        <SelectContent>
+          {data?.costingSheets.map(sheet => (
+            <SelectItem key={sheet.id} value={sheet.id}>{sheet.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+                 {/* Right group: Buttons */}
+        <div className="flex items-center gap-4">
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving
+              ? <Loader2 className="h-4 w-4 mr-10 animate-spin" />
+              : <Save className="h-4 w-4 mr-2" />}
+            Save
+          </Button>
+
+        <Button onClick={createNewSheet}>
+        <Plus className="h-4 w-4 mr-2 gap-x-8" /> New
+        </Button>
+
+        <Button variant="destructive" size="icon" onClick={() => handleDeleteSheet(localSheetData.id)}>
+          <Trash2 className="flex items-center gap-x-2 col-span-8 md:col-span-10" />
+        </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label>Base Currency</Label>
-          <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="USD">USD - US Dollar</SelectItem>
-              <SelectItem value="EUR">EUR - Euro</SelectItem>
-              <SelectItem value="GBP">GBP - British Pound</SelectItem>
-              <SelectItem value="INR">INR - Indian Rupee</SelectItem>
-              <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Profit Margin (%)</Label>
-          <Input
-            type="number"
-            value={profitMargin}
-            onChange={(e) => setProfitMargin(Number(e.target.value))}
-            placeholder="30"
-          />
-        </div>
+      </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div><Label>Sheet Name</Label><Input value={localSheetData.name} onChange={(e) => handleFieldChange('name', e.target.value)} /></div>
+            <div><Label>Base Currency</Label><Select value={localSheetData.selectedCurrency} onValueChange={v => handleFieldChange('selectedCurrency', v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.keys(currencySymbol).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Profit Margin (%)</Label><Input type="number" value={localSheetData.profitMargin} onChange={(e) => handleFieldChange('profitMargin', Number(e.target.value))} /></div>
       </div>
 
-      <Tabs defaultValue="materials" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="materials">Materials</TabsTrigger>
-          <TabsTrigger value="labor">Labor</TabsTrigger>
-          <TabsTrigger value="overheads">Overheads</TabsTrigger>
-          <TabsTrigger value="taxes">Tax Configuration</TabsTrigger>
-          <TabsTrigger value="summary">Cost Summary</TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="materials" className="flex flex-col flex-grow">
+      <TabsList className="flex w-full">
+         <TabsTrigger className="flex-1 text-center" value="materials">Materials</TabsTrigger>
+         <TabsTrigger className="flex-1 text-center" value="labor">Labor</TabsTrigger>
+         <TabsTrigger className="flex-1 text-center" value="overheads">Overheads</TabsTrigger>
+         <TabsTrigger className="flex-1 text-center" value="taxes">Tax Config</TabsTrigger>
+         <TabsTrigger className="flex-1 text-center" value="summary">Cost Summary</TabsTrigger>
+      </TabsList>
 
-        <TabsContent value="materials" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Material Costs</CardTitle>
-              <Button onClick={addMaterial}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Material
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {costBreakdown.materials.map((material, index) => (
-                  <Card key={material.id} className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                      <div>
-                        <Label>Material Name</Label>
-                        <Input
-                          value={material.name}
-                          onChange={(e) => {
-                            const updated = [...costBreakdown.materials];
-                            updated[index].name = e.target.value;
-                            setCostBreakdown(prev => ({ ...prev, materials: updated }));
-                          }}
-                          placeholder="e.g., Cotton Fabric"
-                        />
-                      </div>
-                      <div>
-                        <Label>Quantity</Label>
-                        <Input
-                          type="number"
-                          value={material.quantity}
-                          onChange={(e) => {
-                            const updated = [...costBreakdown.materials];
-                            updated[index].quantity = Number(e.target.value);
-                            updated[index].total = updated[index].quantity * updated[index].unitCost;
-                            setCostBreakdown(prev => ({ ...prev, materials: updated }));
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label>Unit</Label>
-                        <Select
-                          value={material.unit}
-                          onValueChange={(value) => {
-                            const updated = [...costBreakdown.materials];
-                            updated[index].unit = value;
-                            setCostBreakdown(prev => ({ ...prev, materials: updated }));
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="yards">Yards</SelectItem>
-                            <SelectItem value="meters">Meters</SelectItem>
-                            <SelectItem value="pieces">Pieces</SelectItem>
-                            <SelectItem value="kg">Kilograms</SelectItem>
-                            <SelectItem value="lbs">Pounds</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Unit Cost</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={material.unitCost}
-                          onChange={(e) => {
-                            const updated = [...costBreakdown.materials];
-                            updated[index].unitCost = Number(e.target.value);
-                            updated[index].total = updated[index].quantity * updated[index].unitCost;
-                            setCostBreakdown(prev => ({ ...prev, materials: updated }));
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label>Currency</Label>
-                        <Select
-                          value={material.currency}
-                          onValueChange={(value) => {
-                            const updated = [...costBreakdown.materials];
-                            updated[index].currency = value;
-                            setCostBreakdown(prev => ({ ...prev, materials: updated }));
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="USD">USD</SelectItem>
-                            <SelectItem value="EUR">EUR</SelectItem>
-                            <SelectItem value="GBP">GBP</SelectItem>
-                            <SelectItem value="INR">INR</SelectItem>
-                            <SelectItem value="CNY">CNY</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex items-end">
-                        <div className="flex-1">
-                          <Label>Total</Label>
-                          <div className="text-lg font-semibold">
-                            {currencySymbol[material.currency as keyof typeof currencySymbol]}{material.total.toFixed(2)}
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const updated = costBreakdown.materials.filter(m => m.id !== material.id);
-                            setCostBreakdown(prev => ({ ...prev, materials: updated }));
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+            <TabsContent value="materials" className="flex-grow p-1">
+              <Card className="h-full flex flex-col">
+                <CardHeader className="flex-shrink-0 flex flex-row items-center justify-between"><CardTitle>Material Costs</CardTitle><Button onClick={() => addListItem('materials')}><Plus className="h-4 w-4 mr-2" />Add Material</Button></CardHeader>
+                <CardContent className="flex-grow flex flex-col p-0">
+                  <div className="flex-grow overflow-y-auto p-4">
+                  {localSheetData.costBreakdown.materials.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      <p>No materials added. Click "Add Material" to begin.</p>
                     </div>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="labor" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Labor Costs</CardTitle>
-              <Button onClick={addLabor}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Labor
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {costBreakdown.labor.map((labor, index) => (
-                  <Card key={labor.id} className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                      <div>
-                        <Label>Operation</Label>
-                        <Input
-                          value={labor.operation}
-                          onChange={(e) => {
-                            const updated = [...costBreakdown.labor];
-                            updated[index].operation = e.target.value;
-                            setCostBreakdown(prev => ({ ...prev, labor: updated }));
-                          }}
-                          placeholder="e.g., Cutting"
-                        />
-                      </div>
-                      <div>
-                        <Label>Time (minutes)</Label>
-                        <Input
-                          type="number"
-                          value={labor.timeMinutes}
-                          onChange={(e) => {
-                            const updated = [...costBreakdown.labor];
-                            updated[index].timeMinutes = Number(e.target.value);
-                            updated[index].total = (updated[index].timeMinutes / 60) * updated[index].ratePerHour;
-                            setCostBreakdown(prev => ({ ...prev, labor: updated }));
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label>Rate per Hour</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={labor.ratePerHour}
-                          onChange={(e) => {
-                            const updated = [...costBreakdown.labor];
-                            updated[index].ratePerHour = Number(e.target.value);
-                            updated[index].total = (updated[index].timeMinutes / 60) * updated[index].ratePerHour;
-                            setCostBreakdown(prev => ({ ...prev, labor: updated }));
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label>Currency</Label>
-                        <Select
-                          value={labor.currency}
-                          onValueChange={(value) => {
-                            const updated = [...costBreakdown.labor];
-                            updated[index].currency = value;
-                            setCostBreakdown(prev => ({ ...prev, labor: updated }));
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="USD">USD</SelectItem>
-                            <SelectItem value="EUR">EUR</SelectItem>
-                            <SelectItem value="GBP">GBP</SelectItem>
-                            <SelectItem value="INR">INR</SelectItem>
-                            <SelectItem value="CNY">CNY</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex items-end">
-                        <div className="flex-1">
-                          <Label>Total</Label>
-                          <div className="text-lg font-semibold">
-                            {currencySymbol[labor.currency as keyof typeof currencySymbol]}{labor.total.toFixed(2)}
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const updated = costBreakdown.labor.filter(l => l.id !== labor.id);
-                            setCostBreakdown(prev => ({ ...prev, labor: updated }));
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="overheads" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Overhead Costs</CardTitle>
-              <Button onClick={addOverhead}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Overhead
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {costBreakdown.overheads.map((overhead, index) => (
-                  <Card key={overhead.id} className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                      <div>
-                        <Label>Category</Label>
-                        <Input
-                          value={overhead.category}
-                          onChange={(e) => {
-                            const updated = [...costBreakdown.overheads];
-                            updated[index].category = e.target.value;
-                            setCostBreakdown(prev => ({ ...prev, overheads: updated }));
-                          }}
-                          placeholder="e.g., Factory Overhead"
-                        />
-                      </div>
-                      <div>
-                        <Label>Amount</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={overhead.amount}
-                          onChange={(e) => {
-                            const updated = [...costBreakdown.overheads];
-                            updated[index].amount = Number(e.target.value);
-                            setCostBreakdown(prev => ({ ...prev, overheads: updated }));
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label>Currency</Label>
-                        <Select
-                          value={overhead.currency}
-                          onValueChange={(value) => {
-                            const updated = [...costBreakdown.overheads];
-                            updated[index].currency = value;
-                            setCostBreakdown(prev => ({ ...prev, overheads: updated }));
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="USD">USD</SelectItem>
-                            <SelectItem value="EUR">EUR</SelectItem>
-                            <SelectItem value="GBP">GBP</SelectItem>
-                            <SelectItem value="INR">INR</SelectItem>
-                            <SelectItem value="CNY">CNY</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Type</Label>
-                        <Select
-                          value={overhead.type}
-                          onValueChange={(value) => {
-                            const updated = [...costBreakdown.overheads];
-                            updated[index].type = value as 'fixed' | 'percentage';
-                            setCostBreakdown(prev => ({ ...prev, overheads: updated }));
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="fixed">Fixed</SelectItem>
-                            <SelectItem value="percentage">Percentage</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex items-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const updated = costBreakdown.overheads.filter(o => o.id !== overhead.id);
-                            setCostBreakdown(prev => ({ ...prev, overheads: updated }));
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="taxes" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Tax Configuration</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <Label>VAT/Sales Tax Rate (%)</Label>
-                    <Input
-                      type="number"
-                      value={taxConfig.vatRate}
-                      onChange={(e) => setTaxConfig(prev => ({ ...prev, vatRate: Number(e.target.value) }))}
-                    />
-                  </div>
-                  <div>
-                    <Label>Customs Duty Rate (%)</Label>
-                    <Input
-                      type="number"
-                      value={taxConfig.customsDuty}
-                      onChange={(e) => setTaxConfig(prev => ({ ...prev, customsDuty: Number(e.target.value) }))}
-                    />
-                  </div>
-                  <div>
-                    <Label>Other Taxes Rate (%)</Label>
-                    <Input
-                      type="number"
-                      value={taxConfig.otherTaxes}
-                      onChange={(e) => setTaxConfig(prev => ({ ...prev, otherTaxes: Number(e.target.value) }))}
-                    />
-                  </div>
-                </div>
-                <Card className="p-4 bg-gray-50">
-                  <h3 className="font-semibold mb-4">Tax Preview</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Subtotal:</span>
-                      <span>{currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{calculateSubtotal().toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>VAT ({taxConfig.vatRate}%):</span>
-                      <span>{currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{((calculateSubtotal() * taxConfig.vatRate) / 100).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Customs ({taxConfig.customsDuty}%):</span>
-                      <span>{currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{((calculateSubtotal() * taxConfig.customsDuty) / 100).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Other Taxes ({taxConfig.otherTaxes}%):</span>
-                      <span>{currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{((calculateSubtotal() * taxConfig.otherTaxes) / 100).toFixed(2)}</span>
-                    </div>
-                    <div className="border-t pt-2 font-semibold flex justify-between">
-                      <span>Total Taxes:</span>
-                      <span>{currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{calculateTaxes().toFixed(2)}</span>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="summary" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  Cost Breakdown
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Materials:</span>
-                    <span className="font-semibold">
-                      {currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{calculateTotalMaterialCost().toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Labor:</span>
-                    <span className="font-semibold">
-                      {currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{calculateTotalLaborCost().toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Overheads:</span>
-                    <span className="font-semibold">
-                      {currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{calculateTotalOverheadCost().toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Taxes:</span>
-                    <span className="font-semibold">
-                      {currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{calculateTaxes().toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="border-t pt-2">
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Total Cost:</span>
-                      <span className="text-red-600">
-                        {currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{calculateTotalCost().toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Pricing Analysis</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Total Cost:</span>
-                    <span className="font-semibold">
-                      {currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{calculateTotalCost().toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Profit Margin ({profitMargin}%):</span>
-                    <span className="font-semibold text-green-600">
-                      {currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{(calculateTotalCost() * (profitMargin / 100)).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="border-t pt-2">
-                    <div className="flex justify-between text-xl font-bold">
-                      <span>Selling Price:</span>
-                      <span className="text-green-600">
-                        {currencySymbol[selectedCurrency as keyof typeof currencySymbol]}{calculateSellingPrice().toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                    <h4 className="font-semibold mb-2">Multi-Currency Summary</h4>
-                    <div className="space-y-1 text-sm">
-                      {Object.entries(exchangeRates).map(([currency, rate]) => (
-                        <div key={currency} className="flex justify-between">
-                          <span>{currency}:</span>
-                          <span>
-                            {currencySymbol[currency as keyof typeof currencySymbol]}
-                            {convertCurrency(calculateSellingPrice(), selectedCurrency, currency).toFixed(2)}
-                          </span>
-                        </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {localSheetData.costBreakdown.materials.map((material, index) => (
+                        <Card key={material.id} className="p-4"><div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                          <div className="md:col-span-2"><Label>Material Name</Label><Input value={material.name} onChange={(e) => handleListItemChange('materials', index, 'name', e.target.value)} /></div>
+                          <div><Label>Quantity</Label><Input type="number" value={material.quantity} onChange={(e) => handleListItemChange('materials', index, 'quantity', Number(e.target.value))} /></div>
+                          <div><Label>Unit Cost</Label><Input type="number" step="0.01" value={material.unitCost} onChange={(e) => handleListItemChange('materials', index, 'unitCost', Number(e.target.value))} /></div>
+                          <div className="flex-1"><Label>Total</Label><div className="text-lg font-semibold">{currencySymbol[material.currency as keyof typeof currencySymbol]}{material.total.toFixed(2)}</div></div>
+                          <div><Button variant="outline" size="icon" onClick={() => removeListItem('materials', material.id)}><Trash2 className="h-4 w-4" /></Button></div>
+                        </div></Card>
                       ))}
                     </div>
+                  )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="labor" className="flex-grow p-1">
+              <Card className="h-full flex flex-col">
+                <CardHeader className="flex-shrink-0 flex flex-row items-center justify-between"><CardTitle>Labor Costs</CardTitle><Button onClick={() => addListItem('labor')}><Plus className="h-4 w-4 mr-2" />Add Labor</Button></CardHeader>
+                <CardContent className="flex-grow flex flex-col p-0">
+                  <div className="flex-grow overflow-y-auto p-4">
+                    {localSheetData.costBreakdown.labor.length === 0 ? (
+                      <div className="flex items-center justify-center h-full text-gray-500">
+                        <p>No labor costs added. Click "Add Labor" to begin.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {localSheetData.costBreakdown.labor.map((labor, index) => (
+                          <Card key={labor.id} className="p-4"><div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                            <div className="md:col-span-2"><Label>Operation</Label><Input value={labor.operation} onChange={(e) => handleListItemChange('labor', index, 'operation', e.target.value)} /></div>
+                            <div><Label>Time (min)</Label><Input type="number" value={labor.timeMinutes} onChange={(e) => handleListItemChange('labor', index, 'timeMinutes', Number(e.target.value))} /></div>
+                            <div><Label>Rate/Hour</Label><Input type="number" step="0.01" value={labor.ratePerHour} onChange={(e) => handleListItemChange('labor', index, 'ratePerHour', Number(e.target.value))} /></div>
+                            <div className="flex-1"><Label>Total</Label><div className="text-lg font-semibold">{currencySymbol[labor.currency as keyof typeof currencySymbol]}{labor.total.toFixed(2)}</div></div>
+                            <div><Button variant="outline" size="icon" onClick={() => removeListItem('labor', labor.id)}><Trash2 className="h-4 w-4" /></Button></div>
+                          </div></Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="overheads" className="flex-grow p-1">
+              <Card className="h-full flex flex-col">
+                <CardHeader className="flex-shrink-0 flex flex-row items-center justify-between"><CardTitle>Overhead Costs</CardTitle><Button onClick={() => addListItem('overheads')}><Plus className="h-4 w-4 mr-2" />Add Overhead</Button></CardHeader>
+                <CardContent className="flex-grow flex flex-col p-0">
+                  <div className="flex-grow overflow-y-auto p-4">
+                    {localSheetData.costBreakdown.overheads.length === 0 ? (
+                      <div className="flex items-center justify-center h-full text-gray-500">
+                        <p>No overhead costs added. Click "Add Overhead" to begin.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {localSheetData.costBreakdown.overheads.map((overhead, index) => (
+                          <Card key={overhead.id} className="p-4"><div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                            <div><Label>Category</Label><Input value={overhead.category} onChange={(e) => handleListItemChange('overheads', index, 'category', e.target.value)} /></div>
+                            <div><Label>Amount</Label><Input type="number" value={overhead.amount} onChange={(e) => handleListItemChange('overheads', index, 'amount', Number(e.target.value))} /></div>
+                            <div><Label>Type</Label><Select value={overhead.type} onValueChange={(v) => handleListItemChange('overheads', index, 'type', v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="FIXED">Fixed</SelectItem><SelectItem value="PERCENTAGE">Percentage</SelectItem></SelectContent></Select></div>
+                            <div><Button variant="outline" size="icon" onClick={() => removeListItem('overheads', overhead.id)}><Trash2 className="h-4 w-4" /></Button></div>
+                          </div></Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="taxes" className="flex-grow p-1">
+                <Card className="h-full"><CardHeader><CardTitle>Tax Configuration</CardTitle></CardHeader><CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div><Label>VAT/Sales Tax (%)</Label><Input type="number" value={localSheetData.taxConfig.vatRate} onChange={e => handleFieldChange('taxConfig.vatRate', Number(e.target.value))} /></div>
+                     <div><Label>Customs Duty (%)</Label><Input type="number" value={localSheetData.taxConfig.customsDuty} onChange={e => handleFieldChange('taxConfig.customsDuty', Number(e.target.value))} /></div>
+                     <div><Label>Other Taxes (%)</Label><Input type="number" value={localSheetData.taxConfig.otherTaxes} onChange={e => handleFieldChange('taxConfig.otherTaxes', Number(e.target.value))} /></div>
+                </CardContent></Card>
+            </TabsContent>
+            
+            <TabsContent value="summary" className="flex-grow p-1">
+                 <Card className="h-full"><CardHeader><CardTitle>Cost Summary</CardTitle></CardHeader><CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-lg">
+                        <div><Label className="text-sm font-medium text-gray-500">Total Material Cost</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateTotalMaterialCost().toFixed(2)}</div></div>
+                        <div><Label className="text-sm font-medium text-gray-500">Total Labor Cost</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateTotalLaborCost().toFixed(2)}</div></div>
+                        <div><Label className="text-sm font-medium text-gray-500">Total Overhead Cost</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateTotalOverheadCost().toFixed(2)}</div></div>
+                        <div className="font-bold"><Label className="text-sm font-medium text-gray-500">Subtotal</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateSubtotal().toFixed(2)}</div></div>
+                        <div><Label className="text-sm font-medium text-gray-500">Total Tax</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateTaxes().toFixed(2)}</div></div>
+                        <div className="font-bold"><Label className="text-sm font-medium text-gray-500">Total Cost (COGS)</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateTotalCost().toFixed(2)}</div></div>
+                        <div className="col-span-2 border-t pt-4 mt-4"><Label className="text-sm font-medium text-gray-500">Recommended Selling Price</Label><div className="text-2xl font-bold text-green-600">{currencySymbol[localSheetData.selectedCurrency]}{calculateSellingPrice().toFixed(2)}</div></div>
+                    </div>
+                </CardContent></Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,10 +1,10 @@
-
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Department } from '@/types';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
+  googleLogin: (userData: User) => void;
   logout: () => void;
   switchDepartment: (department: Department) => void;
 }
@@ -53,28 +53,45 @@ const mockUsers: User[] = [
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
+  useEffect(() => {
+    // Check if user data exists in local storage on initial load
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
+
   const login = async (email: string, password: string) => {
     // Mock authentication
     const foundUser = mockUsers.find(u => u.email === email);
     if (foundUser) {
       setUser(foundUser);
+      localStorage.setItem('user', JSON.stringify(foundUser));
     } else {
       throw new Error('Invalid credentials');
     }
   };
 
+  const googleLogin = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+  };
+
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('user');
   };
 
   const switchDepartment = (department: Department) => {
     if (user) {
-      setUser({ ...user, department });
+      const updatedUser = { ...user, department };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, switchDepartment }}>
+    <AuthContext.Provider value={{ user, login, googleLogin, logout, switchDepartment }}>
       {children}
     </AuthContext.Provider>
   );

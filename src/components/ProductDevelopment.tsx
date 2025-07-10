@@ -1,278 +1,218 @@
-
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { gql, useQuery, useMutation } from '@apollo/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Lightbulb, CheckCircle, Clock, AlertCircle, Plus } from 'lucide-react';
-import { Product, DevelopmentStage, ProductStatus } from '@/types';
 
+// GraphQL Queries and Mutations
+const GET_PRODUCTS = gql`
+  query GetProducts {
+    products {
+      id
+      name
+      sku
+      category
+      status
+      developmentStage
+      createdAt
+      samples {
+        id
+        type
+        status
+        createdAt
+      }
+      designFiles {
+        id
+        fileName
+        fileType
+        isLatest
+        uploadedAt
+      }
+    }
+  }
+`;
+
+const CREATE_PRODUCT = gql`
+  mutation CreateProduct($input: ProductInput!) {
+    createProduct(input: $input) {
+      id
+      name
+    }
+  }
+`;
+
+// Component
 const ProductDevelopment: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: 'PRD-001',
-      name: 'Summer Breeze T-Shirt',
-      sku: 'SBT-001',
-      category: 'Apparel',
-      season: 'Summer 2024',
-      designer: 'Emily Chen',
-      status: 'design',
-      developmentStage: 'tech-pack',
-      samples: [
-        {
-          id: 'SMP-001',
-          productId: 'PRD-001',
-          version: 1,
-          status: 'approved',
-          feedback: 'Great fit, approved for production',
-          createdAt: '2024-01-10',
-          approvedBy: 'Sarah Johnson'
-        }
-      ],
-      designFiles: [
-        {
-          id: 'DF-001',
-          productId: 'PRD-001',
-          fileName: 'summer-tshirt-v2.pdf',
-          fileType: 'PDF',
-          version: 2,
-          uploadedBy: 'Emily Chen',
-          uploadedAt: '2024-01-12',
-          isLatest: true
-        }
-      ],
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-12'
+  const { loading, error, data, refetch } = useQuery(GET_PRODUCTS);
+  const [createProduct, { loading: creatingProduct }] = useMutation(CREATE_PRODUCT, {
+    onCompleted: () => {
+      refetch();
+      setIsModalOpen(false); // Close modal on success
     },
-    {
-      id: 'PRD-002',
-      name: 'Urban Denim Jacket',
-      sku: 'UDJ-002',
-      category: 'Outerwear',
-      season: 'Fall 2024',
-      designer: 'Marcus Rivera',
-      status: 'sampling',
-      developmentStage: 'proto-sample',
-      samples: [
-        {
-          id: 'SMP-002',
-          productId: 'PRD-002',
-          version: 1,
-          status: 'revision-needed',
-          feedback: 'Sleeve length needs adjustment',
-          createdAt: '2024-01-08'
-        }
-      ],
-      designFiles: [],
-      createdAt: '2023-12-15',
-      updatedAt: '2024-01-08'
-    }
-  ]);
+    onError: (error) => {
+      // Display a more informative error message
+      alert(`Error creating product: ${error.message}`);
+    },
+  });
 
-  const getStatusColor = (status: ProductStatus) => {
-    const colors = {
-      concept: 'bg-gray-100 text-gray-800',
-      design: 'bg-blue-100 text-blue-800',
-      sampling: 'bg-purple-100 text-purple-800',
-      approved: 'bg-green-100 text-green-800',
-      'production-ready': 'bg-indigo-100 text-indigo-800',
-      discontinued: 'bg-red-100 text-red-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newProduct, setNewProduct] = useState({ name: '', sku: '', category: '', season: '', designer: '', priority: 'MEDIUM' });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewProduct((prev) => ({ ...prev, [name]: value }));
   };
 
-  const getStageProgress = (stage: DevelopmentStage) => {
-    const stages = {
-      ideation: 10,
-      'initial-design': 25,
-      'tech-pack': 50,
-      'proto-sample': 70,
-      'fit-sample': 85,
-      'final-approval': 100
-    };
-    return stages[stage] || 0;
+  const handlePriorityChange = (value: string) => {
+    setNewProduct((prev) => ({ ...prev, priority: value }));
   };
 
-  const getSampleStatusIcon = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'revision-needed':
-        return <AlertCircle className="h-4 w-4 text-orange-600" />;
-      case 'ready-review':
-        return <Clock className="h-4 w-4 text-blue-600" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-400" />;
-    }
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProduct.name) return alert('Product name is required.');
+
+    await createProduct({ variables: { input: newProduct } });
+    setNewProduct({ name: '', sku: '', category: '', season: '', designer: '', priority: 'MEDIUM' }); // Reset form
   };
+
+  if (loading) return <p className="p-4">Loading...</p>;
+  if (error) return <p className="p-4 text-red-500">Error loading products: {error.message}</p>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Lightbulb className="h-6 w-6 text-yellow-600" />
-        <h1 className="text-3xl font-bold text-gray-900">Product Development Tracker</h1>
+    <div className="p-4 space-y-6">
+      <div className="grid grid-cols-4 md:grid-cols-10 gap-4 items-center w-full">
+        <h1 className="text-3xl font-bold col-span-2 md:col-span-8">Product Development</h1>
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogTrigger asChild>
+          <div className="col-span-2 md:col-span-2 justify-self-end">
+            <Button>
+              <Plus className="h-12 px-6 text-lg" /> Add New Product
+            </Button>
+            </div>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Add New Product</DialogTitle>
+              <DialogDescription>Fill in the details for the new product.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCreateProduct}>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">Name</Label>
+                  <Input id="name" name="name" value={newProduct.name} onChange={handleInputChange} className="col-span-3" required />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="sku" className="text-right">SKU</Label>
+                  <Input id="sku" name="sku" value={newProduct.sku} onChange={handleInputChange} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="category" className="text-right">Category</Label>
+                  <Input id="category" name="category" value={newProduct.category} onChange={handleInputChange} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="season" className="text-right">Season</Label>
+                  <Input id="season" name="season" value={newProduct.season} onChange={handleInputChange} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="designer" className="text-right">Designer</Label>
+                  <Input id="designer" name="designer" value={newProduct.designer} onChange={handleInputChange} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="priority" className="text-right">Priority</Label>
+                  <Select name="priority" value={newProduct.priority} onValueChange={handlePriorityChange}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LOW">Low</SelectItem>
+                      <SelectItem value="MEDIUM">Medium</SelectItem>
+                      <SelectItem value="HIGH">High</SelectItem>
+                      <SelectItem value="URGENT">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={creatingProduct}>
+                  {creatingProduct ? 'Adding...' : 'Add Product'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <Tabs defaultValue="products" className="space-y-6">
+      <Tabs defaultValue="products" className="w-full">
         <TabsList>
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="samples">Sample Tracking</TabsTrigger>
           <TabsTrigger value="approvals">Design Approvals</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="products" className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Product Pipeline</CardTitle>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Product
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {products.map((product) => (
-                  <Card key={product.id} className="p-6">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-xl font-semibold">{product.name}</h3>
-                          <div className="text-sm text-gray-600">
-                            {product.category} • {product.season} • Designer: {product.designer}
-                          </div>
-                          <div className="text-sm text-gray-500">SKU: {product.sku}</div>
-                        </div>
-                        <Badge className={getStatusColor(product.status)}>
-                          {product.status.replace('-', ' ').toUpperCase()}
-                        </Badge>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Development Progress</span>
-                          <span className="text-sm text-gray-600">
-                            {product.developmentStage.replace('-', ' ').toUpperCase()}
-                          </span>
-                        </div>
-                        <Progress value={getStageProgress(product.developmentStage)} className="h-2" />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <div className="font-medium text-sm text-gray-500">Samples</div>
-                          <div className="text-lg font-semibold">{product.samples.length}</div>
-                          <div className="flex gap-1 mt-1">
-                            {product.samples.map((sample) => (
-                              <div key={sample.id} className="flex items-center gap-1">
-                                {getSampleStatusIcon(sample.status)}
-                                <span className="text-xs">v{sample.version}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="font-medium text-sm text-gray-500">Design Files</div>
-                          <div className="text-lg font-semibold">{product.designFiles.length}</div>
-                          {product.designFiles.length > 0 && (
-                            <div className="text-xs text-gray-600">
-                              Latest: {product.designFiles.find(f => f.isLatest)?.fileName}
-                            </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <div className="font-medium text-sm text-gray-500">Last Updated</div>
-                          <div className="text-sm">{product.updatedAt}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">View Details</Button>
-                        <Button variant="outline" size="sm">Update Status</Button>
-                        <Button variant="outline" size="sm">Upload Files</Button>
-                        <Button variant="outline" size="sm">Request Sample</Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="products">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+            {data?.products.map((product: any) => (
+              <Card key={product.id}>
+                <CardHeader>
+                  <CardTitle>{product.name}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <p className="text-sm text-gray-600">SKU: {product.sku || 'N/A'}</p>
+                  <p className="text-sm text-gray-600">Category: {product.category || 'N/A'}</p>
+                  <div className="flex items-center gap-2">
+                    <Label>Status:</Label>
+                    <Badge variant="outline">{product.status.replace(/_/g, ' ')}</Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label>Stage:</Label>
+                    <Badge>{product.developmentStage.replace(/_/g, ' ')}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
-        <TabsContent value="samples" className="space-y-6">
-          <Card>
+        <TabsContent value="samples">
+          <Card className="mt-4">
             <CardHeader>
-              <CardTitle>Sample Tracking Dashboard</CardTitle>
+              <CardTitle>All Samples</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {products.flatMap(product => 
-                  product.samples.map(sample => (
-                    <Card key={sample.id} className="p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <div className="font-semibold">{products.find(p => p.id === sample.productId)?.name}</div>
-                          <div className="text-sm text-gray-600">Version {sample.version}</div>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            {getSampleStatusIcon(sample.status)}
-                            <Badge className={sample.status === 'approved' ? 'bg-green-100 text-green-800' : 
-                                            sample.status === 'revision-needed' ? 'bg-orange-100 text-orange-800' : 
-                                            'bg-blue-100 text-blue-800'}>
-                              {sample.status.replace('-', ' ').toUpperCase()}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm">{sample.feedback}</div>
-                          {sample.approvedBy && (
-                            <div className="text-xs text-gray-500">Approved by: {sample.approvedBy}</div>
-                          )}
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-600">Created: {sample.createdAt}</div>
-                        </div>
-                      </div>
-                    </Card>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="approvals" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Design Approvals & Revisions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="p-4 text-center">
-                    <div className="text-2xl font-bold text-green-600">
-                      {products.flatMap(p => p.samples).filter(s => s.status === 'approved').length}
-                    </div>
-                    <div className="text-sm text-gray-600">Approved Samples</div>
-                  </Card>
-                  <Card className="p-4 text-center">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {products.flatMap(p => p.samples).filter(s => s.status === 'revision-needed').length}
-                    </div>
-                    <div className="text-sm text-gray-600">Pending Revisions</div>
-                  </Card>
-                  <Card className="p-4 text-center">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {products.flatMap(p => p.samples).filter(s => s.status === 'ready-review').length}
-                    </div>
-                    <div className="text-sm text-gray-600">Ready for Review</div>
-                  </Card>
+            <CardContent className="space-y-4">
+              {data?.products.flatMap((p: any) => p.samples.map((s: any) => ({ ...s, productName: p.name }))).map((sample: any) => (
+                <div key={sample.id} className="border p-3 rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold">{sample.productName}</p>
+                    <p className="text-sm text-gray-500">Type: {sample.type}</p>
+                  </div>
+                  <Badge>{sample.status.replace(/_/g, ' ')}</Badge>
                 </div>
-              </div>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="approvals">
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>All Design Files</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {data?.products.flatMap((p: any) => p.designFiles.map((f: any) => ({ ...f, productName: p.name }))).map((file: any) => (
+                <div key={file.id} className="border p-3 rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold">{file.fileName}</p>
+                    <p className="text-sm text-gray-500">Product: {file.productName}</p>
+                  </div>
+                  {file.isLatest && <Badge variant="secondary">Latest</Badge>}
+                </div>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>

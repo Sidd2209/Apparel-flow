@@ -1,88 +1,94 @@
-
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Order } from '@/types';
-import { Calendar, User, Package } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, DollarSign, User } from 'lucide-react';
+import { Order, OrderStatus, Priority } from '@/types';
 
 interface OrderCardProps {
   order: Order;
-  onStatusUpdate?: (orderId: string, newStatus: string) => void;
+  onViewDetails?: () => void;
+  onUpdateStatus?: () => void;
+  onContactCustomer?: () => void;
 }
 
-const statusColors = {
-  pending: 'bg-gray-500',
-  'in-progress': 'bg-blue-500',
-  sampling: 'bg-purple-500',
-  approved: 'bg-green-500',
-  production: 'bg-orange-500',
-  shipped: 'bg-teal-500',
-  delivered: 'bg-emerald-500',
-  cancelled: 'bg-red-500',
+const statusColors: Record<OrderStatus, string> = {
+  PENDING: 'bg-yellow-100 text-yellow-800',
+  PROCESSING: 'bg-blue-100 text-blue-800',
+  SHIPPED: 'bg-gray-100 text-gray-800',
+  DELIVERED: 'bg-green-100 text-green-800',
+  CANCELLED: 'bg-red-100 text-red-800',
 };
 
-const priorityColors = {
-  low: 'bg-gray-500',
-  medium: 'bg-yellow-500',
-  high: 'bg-orange-500',
-  urgent: 'bg-red-500',
+const priorityColors: Record<Priority, string> = {
+  LOW: 'bg-green-100 text-green-800',
+  MEDIUM: 'bg-yellow-100 text-yellow-800',
+  HIGH: 'bg-orange-100 text-orange-800',
+  URGENT: 'bg-red-100 text-red-800',
 };
 
-const OrderCard: React.FC<OrderCardProps> = ({ order, onStatusUpdate }) => {
-  const isOverdue = new Date(order.deadline) < new Date() && order.status !== 'delivered';
-
+export const OrderCard = ({ 
+  order, 
+  onViewDetails, 
+  onUpdateStatus, 
+  onContactCustomer 
+}: OrderCardProps) => {
   return (
-    <Card className={`transition-all hover:shadow-md ${isOverdue ? 'border-red-200 bg-red-50/50' : ''}`}>
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-lg font-semibold">
-            {order.orderNumber}
-          </CardTitle>
-          <div className="flex gap-2">
-            <Badge className={`${priorityColors[order.priority]} text-white`}>
-              {order.priority}
-            </Badge>
-            <Badge className={`${statusColors[order.status]} text-white`}>
+    <Card className="p-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div>
+          <div className="font-semibold text-lg">{order.orderNumber}</div>
+          <div className="text-sm text-gray-600">{order.customerName}</div>
+          <div className="flex gap-2 mt-2">
+            <Badge className={statusColors[order.status]}>
               {order.status}
+            </Badge>
+            <Badge className={priorityColors[order.priority]}>
+              {order.priority}
             </Badge>
           </div>
         </div>
-        <p className="text-gray-600">{order.customerName}</p>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 text-gray-500" />
-            <span>{order.productType}</span>
+
+        <div>
+          <div className="font-medium text-sm text-gray-500">Product</div>
+          <div className="text-sm">{order.productType}</div>
+          <div className="text-sm text-gray-600">Qty: {order.quantity}</div>
+        </div>
+
+        <div>
+          <div className="font-medium text-sm text-gray-500">Timeline</div>
+          <div className="flex items-center gap-1 text-sm">
+            <Calendar className="h-4 w-4" />
+            <span>Due: {new Date(order.deadline).toLocaleDateString()}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="font-medium">Qty:</span>
-            <span>{order.quantity.toLocaleString()}</span>
+          <div className="text-xs text-gray-500">
+            Created: {new Date(order.createdAt).toLocaleDateString()}
           </div>
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-gray-500" />
-            <span className={isOverdue ? 'text-red-600 font-medium' : ''}>
-              {new Date(order.deadline).toLocaleDateString()}
-            </span>
+        </div>
+
+        <div>
+          <div className="font-medium text-sm text-gray-500">Financial</div>
+          <div className="flex items-center gap-1 text-sm font-semibold">
+            <DollarSign className="h-4 w-4" />
+            <span>${order.totalValue.toLocaleString()}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-gray-500" />
+          <div className="flex items-center gap-1 text-xs text-gray-600">
+            <User className="h-3 w-3" />
             <span>{order.assignedTo}</span>
           </div>
         </div>
-        
-        <div className="flex justify-between items-center pt-2 border-t">
-          <span className="text-lg font-semibold text-green-600">
-            ${order.totalValue.toLocaleString()}
-          </span>
-          {onStatusUpdate && (
-            <Button size="sm" variant="outline">
-              Update Status
-            </Button>
-          )}
+
+        <div className="flex flex-col gap-2">
+          <Button variant="outline" size="sm" onClick={onViewDetails}>
+            View Details
+          </Button>
+          <Button variant="outline" size="sm" onClick={onUpdateStatus}>
+            Update Status
+          </Button>
+          <Button variant="outline" size="sm" onClick={onContactCustomer}>
+            Contact Customer
+          </Button>
         </div>
-      </CardContent>
+      </div>
     </Card>
   );
 };
