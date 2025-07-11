@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => ({
     proxy: {
       // Proxy all GraphQL requests to the main backend server
       '/graphql': {
-        target: 'http://localhost:8080',
+        target: mode === 'development' ? 'http://localhost:8080' : 'https://apparel-flow-api.onrender.com',
         changeOrigin: true,
         secure: false,
       },
@@ -20,12 +20,22 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' &&
-    componentTagger(),
+    mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  build: {
+    outDir: "dist",
+    emptyOutDir: true,
+    target: "esnext",
+    minify: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html')
+      }
+    }
   },
 }));

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { gql, useMutation } from '@apollo/client';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from './ui/input';
-import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 const UPDATE_USER_PROFILE = gql`
@@ -23,25 +24,32 @@ export function ProfileSetup() {
   const [username, setUsername] = useState('');
   const [department, setDepartment] = useState('');
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [updateUserProfile, { loading, error }] = useMutation(UPDATE_USER_PROFILE);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !department) {
-      alert('Please fill out all fields.');
-      return;
-    }
+    if (!username || !department || !user) return;
 
     try {
       const { data } = await updateUserProfile({
-        variables: { input: { username, department } },
+        variables: {
+          input: {
+            googleId: user.id, // Pass the googleId from the user context
+            email: user.email, // Pass the email from the user context
+            username,
+            department,
+          },
+        },
       });
 
-      if (data?.updateUserProfile?.preferredHomepage) {
-        navigate(data.updateUserProfile.preferredHomepage);
-      } else {
-        navigate('/'); // Fallback redirect
+      if (data.updateUserProfile) {
+        if (data.updateUserProfile.preferredHomepage) {
+          navigate(data.updateUserProfile.preferredHomepage);
+        } else {
+          navigate('/'); // Fallback redirect
+        }
       }
     } catch (err) {
       console.error('Error updating profile:', err);

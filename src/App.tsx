@@ -17,17 +17,19 @@ import QualityControl from './components/QualityControl';
 import ShippingModule from './components/ShippingModule';
 import InventoryManagement from './components/InventoryManagement';
 import { ProfileSetup } from './components/ProfileSetup';
+import { AuthGate } from './components/AuthGate';
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <TooltipProvider>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />}>
-              {/* <Route index element={<Dashboard />} /> */}
+      <BrowserRouter>
+        <AuthProvider>
+          <AuthGate>
+            <Routes>
+              <Route path="/" element={<Index />}>
+                {/* <Route index element={<Dashboard />} /> */}
               <Route path="product-dev" element={<ProductDevelopment />} />
               <Route path="orders" element={<OrderManagement />} />
               <Route path="costing" element={<CostingCalculator />} />
@@ -40,10 +42,11 @@ const App = () => (
             <Route path="/profile-setup" element={<ProfileSetup />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
+        </AuthGate>
       </AuthProvider>
-    </QueryClientProvider>
-  </TooltipProvider>
+    </BrowserRouter>
+  </QueryClientProvider>
+</TooltipProvider>
 );
 
 export default App;

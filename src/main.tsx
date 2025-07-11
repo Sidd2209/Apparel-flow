@@ -16,11 +16,11 @@ if (!googleClientId) {
 
 // Set up Apollo Client
 const client = new ApolloClient({
-  uri: 'http://localhost:8080/graphql',
+  uri: import.meta.env.VITE_API_URL || 'http://localhost:8080/graphql',
   cache: new InMemoryCache(),
 });
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

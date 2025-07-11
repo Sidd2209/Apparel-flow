@@ -3,7 +3,9 @@ import { User, Department } from '@/types';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  authLoading: boolean;
+  isProfileChecked: boolean;
+  setProfileChecked: (checked: boolean) => void;
   googleLogin: (userData: User) => void;
   logout: () => void;
   switchDepartment: (department: Department) => void;
@@ -11,75 +13,36 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demonstration
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'Sarah Chen',
-    email: 'sarah.chen@company.com',
-    department: 'merchandising',
-    role: 'manager'
-  },
-  {
-    id: '2',
-    name: 'Mike Rodriguez',
-    email: 'mike.rodriguez@company.com',
-    department: 'logistics',
-    role: 'coordinator'
-  },
-  {
-    id: '3',
-    name: 'Emily Watson',
-    email: 'emily.watson@company.com',
-    department: 'procurement',
-    role: 'associate'
-  },
-  {
-    id: '4',
-    name: 'David Kim',
-    email: 'david.kim@company.com',
-    department: 'sampling',
-    role: 'manager'
-  },
-  {
-    id: '5',
-    name: 'Jessica Thompson',
-    email: 'jessica.thompson@company.com',
-    department: 'management',
-    role: 'admin'
-  }
-];
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [isProfileChecked, setProfileChecked] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check if user data exists in local storage on initial load
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      // If a user from storage has a department, we know their profile is complete.
+      if (parsedUser.department) {
+        setProfileChecked(true);
+      }
     }
+    setAuthLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    // Mock authentication
-    const foundUser = mockUsers.find(u => u.email === email);
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('user', JSON.stringify(foundUser));
-    } else {
-      throw new Error('Invalid credentials');
-    }
-  };
-
   const googleLogin = (userData: User) => {
+    // This just sets the user in state. The AuthGate will handle the rest.
     setUser(userData);
+    setProfileChecked(false); // Reset so the AuthGate runs the check
     localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const logout = () => {
     setUser(null);
+    setProfileChecked(false);
     localStorage.removeItem('user');
+    // Navigation will be handled by the component that calls logout, or by a redirect in the router
   };
 
   const switchDepartment = (department: Department) => {
@@ -91,7 +54,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, googleLogin, logout, switchDepartment }}>
+    <AuthContext.Provider value={{ user, authLoading, isProfileChecked, setProfileChecked, googleLogin, logout, switchDepartment }}>
       {children}
     </AuthContext.Provider>
   );
