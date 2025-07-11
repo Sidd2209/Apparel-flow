@@ -26,6 +26,8 @@ export const startServer = async () => {
     await mongoose.connect(MONGO_URI);
     console.log('🔌 Successfully connected to MongoDB');
 
+    await server.start();
+
     app.use(cors());
     app.use(
       '/graphql',
