@@ -1,25 +1,20 @@
 {
-  "name": "apparel-flow-server",
+  "name": "apparel-flow-pilot-server",
   "version": "1.0.0",
   "description": "Backend server for Apparel Flow Pilot",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
-    "dev": "nodemon src/index.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "build": "tsc"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "@apollo/client": "^3.13.8",
-    "@apollo/server": "^4.12.2",
-    "@graphql-tools/schema": "^10.0.23",
+    "@apollo/server": "^4.12.0",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.0",
-    "express": "^4.19.2",
-    "express-graphql": "^0.12.0",
-    "graphql": "^15.10.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.2",
+    "firebase-admin": "^11.11.0",
+    "firebase-functions": "^4.4.1",
+    "graphql": "^16.6.0",
     "mongodb": "^6.17.0",
     "mongoose": "^8.16.2",
     "uuid": "^11.1.0"

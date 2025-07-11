@@ -91,6 +91,24 @@ const mockPurchaseOrders: any[] = [
   },
 ];
 
+// Helper function to map departments to their preferred homepages
+const getHomepageForDepartment = (department: string): string => {
+  switch (department) {
+    case 'DESIGN':
+      return '/product-dev';
+    case 'SOURCING':
+      return '/sourcing';
+    case 'PRODUCTION':
+      return '/production-scheduler';
+    case 'SALES':
+      return '/orders';
+    case 'INVENTORY':
+      return '/inventory';
+    default:
+      return '/';
+  }
+};
+
 export const resolvers = {
   Query: {
     products: async () => await Product.find(),
@@ -316,26 +334,50 @@ export const resolvers = {
         return deletedSheet.id;
       } catch (error) {
         console.error(`Error deleting costing sheet with id ${id}:`, error);
+
         throw new Error('Failed to delete costing sheet');
       }
     },
     updateUserProfile: async (_: any, { input }: { input: any }, context: any) => {
-      // In a real app, you'd get the user ID from the context
-      // For now, we'll hardcode a user to simulate an authenticated user
-      const googleId = 'temp-google-id'; // Replace with actual Google ID from auth context
-      const email = 'temp-user@example.com'; // Replace with actual email from auth context
+      console.log('=== UPDATE USER PROFILE START ===');
+      console.log('Input received:', input);
 
-      const user = await User.findOneAndUpdate(
-        { googleId },
-        {
-          $set: {
-            ...input,
-            email, // Ensure email is set
-          },
-          $setOnInsert: { googleId } // Set googleId only on creation
-        },
-        { new: true, upsert: true, setDefaultsOnInsert: true }
-      );
+      const { googleId, email, username, department } = input;
+
+      if (!googleId || !email) {
+        throw new Error('Google ID and email are required to update profile.');
+      }
+
+      console.log('Looking for user with googleId:', googleId);
+      let user = await User.findOne({ googleId });
+
+      if (user) {
+        console.log('Found existing user, updating fields');
+        // Update existing user
+        user.username = username;
+        user.department = department;
+        user.preferredHomepage = getHomepageForDepartment(department);
+      } else {
+        console.log('Creating new user');
+        // Create new user with preferredHomepage set
+        user = new User({ 
+          googleId, 
+          email, 
+          username, 
+          department,
+          preferredHomepage: getHomepageForDepartment(department)
+        });
+      }
+
+      console.log('User object before save:', user);
+      console.log('Is user new:', user.isNew);
+      console.log('Is department modified:', user.isModified('department'));
+      console.log('Department value:', user.department);
+
+      await user.save(); // This will trigger the pre-save hook
+      
+      console.log('User object after save:', user);
+      console.log('=== UPDATE USER PROFILE END ===');
 
       return user;
     },

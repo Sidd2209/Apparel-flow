@@ -22,10 +22,16 @@ const UserSchema: Schema = new Schema({
 
 // Middleware to set the preferred homepage based on the selected department
 UserSchema.pre<IUser>('save', function(next) {
-  if (this.isModified('department')) {
+  console.log('--- PRE-SAVE HOOK TRIGGERED ---');
+  console.log('isNew:', this.isNew);
+  console.log('isModified("department"):', this.isModified('department'));
+  console.log('Department:', this.department);
+
+  if (this.isNew || this.isModified('department')) {
+    console.log('--- CONDITION MET, SETTING HOMEPAGE ---');
     switch (this.department) {
       case 'DESIGN':
-        this.preferredHomepage = '/product-development';
+        this.preferredHomepage = '/product-dev';
         break;
       case 'SOURCING':
         this.preferredHomepage = '/sourcing';
@@ -43,6 +49,7 @@ UserSchema.pre<IUser>('save', function(next) {
         this.preferredHomepage = '/';
     }
   }
+  console.log('--- HOMEPAGE AFTER LOGIC ---', this.preferredHomepage);
   next();
 });
 

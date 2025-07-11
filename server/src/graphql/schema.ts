@@ -303,6 +303,8 @@ export const typeDefs = `
   }
 
   input UpdateUserInput {
+    googleId: String!
+    email: String!
     username: String!
     department: String!
   }
