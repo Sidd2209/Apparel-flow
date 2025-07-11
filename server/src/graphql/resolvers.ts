@@ -3,6 +3,10 @@ import InventoryItem from '../models/InventoryItem';
 import { CostingSheet } from '../models/CostingSheet';
 import Product from '../models/Product';
 import Order from '../models/Order';
+import { ProductionPlan } from '../models/ProductionPlan';
+import { Resource } from '../models/Resource';
+import { User } from '../models/User';
+
 function ensureSubdocIds(costBreakdown: any) {
   ['materials', 'labor', 'overheads'].forEach(sub => {
     if (costBreakdown && Array.isArray(costBreakdown[sub])) {
@@ -87,87 +91,6 @@ const mockPurchaseOrders: any[] = [
   },
 ];
 
-let mockProductionPlans: any[] = [
-  {
-    id: 'PP-001',
-    productName: 'Cotton T-Shirts',
-    quantity: 500,
-    startDate: '2024-01-20',
-    endDate: '2024-01-30',
-    status: 'IN_PROGRESS',
-    progress: 65,
-    assignedWorkers: 8,
-    estimatedHours: 240,
-    actualHours: 156,
-    priority: 'HIGH',
-  },
-  {
-    id: 'PP-002',
-    productName: 'Denim Jeans',
-    quantity: 300,
-    startDate: '2024-01-25',
-    endDate: '2024-02-05',
-    status: 'PLANNED',
-    progress: 0,
-    assignedWorkers: 12,
-    estimatedHours: 360,
-    actualHours: 0,
-    priority: 'MEDIUM',
-  },
-  {
-    id: 'PP-003',
-    productName: 'Polo Shirts',
-    quantity: 200,
-    startDate: '2024-01-15',
-    endDate: '2024-01-22',
-    status: 'DELAYED',
-    progress: 40,
-    assignedWorkers: 6,
-    estimatedHours: 160,
-    actualHours: 120,
-    priority: 'HIGH',
-  },
-];
-
-let mockResources: any[] = [
-  {
-    id: 'R-001',
-    name: 'Cutting Machines',
-    type: 'MACHINE',
-    capacity: 10,
-    allocated: 7,
-    available: 3,
-    efficiency: 92,
-  },
-  {
-    id: 'R-002',
-    name: 'Sewing Operators',
-    type: 'WORKER',
-    capacity: 25,
-    allocated: 20,
-    available: 5,
-    efficiency: 88,
-  },
-  {
-    id: 'R-003',
-    name: 'Quality Inspectors',
-    type: 'WORKER',
-    capacity: 8,
-    allocated: 6,
-    available: 2,
-    efficiency: 95,
-  },
-  {
-    id: 'R-004',
-    name: 'Cotton Fabric',
-    type: 'MATERIAL',
-    capacity: 1000,
-    allocated: 650,
-    available: 350,
-    efficiency: 100,
-  },
-];
-
 export const resolvers = {
   Query: {
     products: async () => await Product.find(),
@@ -194,8 +117,8 @@ export const resolvers = {
       ).length,
       topPerformingVendors: [...mockVendors].sort((a: any, b: any) => b.rating - a.rating).slice(0, 2),
     }),
-    productionPlans: () => mockProductionPlans,
-    resources: () => mockResources,
+    productionPlans: async () => await ProductionPlan.find(),
+    resources: async () => await Resource.find(),
     inventoryItems: async () => {
       try {
         return await InventoryItem.find();
@@ -235,6 +158,15 @@ export const resolvers = {
         }
       }
       return sheet;
+    },
+    me: async (parent: any, args: any, context: any) => {
+      // In a real app, you'd get the user ID from the context (e.g., from a JWT)
+      // For now, we'll simulate a logged-in user.
+      if (!context.userId) return null;
+      return await User.findById(context.userId);
+    },
+    user: async (_: any, { googleId }: { googleId: string }) => {
+      return await User.findOne({ googleId });
     },
   },
   Mutation: {
@@ -293,24 +225,15 @@ export const resolvers = {
       mockPurchaseOrders.push(newPO);
       return newPO;
     },
-    createProductionPlan: (_: any, { input }: { input: any }) => {
-      const newPlan = {
-        ...input,
-        id: `PP-00${mockProductionPlans.length + 1}`,
-        progress: 0,
-        actualHours: 0,
-      };
-      mockProductionPlans.push(newPlan);
-      return newPlan;
+    createProductionPlan: async (_: any, { input }: { input: any }) => {
+      const newPlan = new ProductionPlan(input);
+      await newPlan.save();
+      // Return a plain object to ensure virtuals like 'id' are applied correctly
+      return newPlan.toObject();
     },
-    createResource: (_: any, { input }: { input: any }) => {
-      const newResource = {
-        ...input,
-        id: `R-00${mockResources.length + 1}`,
-        allocated: 0,
-        available: input.capacity,
-      };
-      mockResources.push(newResource);
+    createResource: async (_: any, { input }: { input: any }) => {
+      const newResource = new Resource(input);
+      await newResource.save();
       return newResource;
     },
     createInventoryItem: async (_: any, { input }: { input: any }) => {
@@ -395,6 +318,26 @@ export const resolvers = {
         console.error(`Error deleting costing sheet with id ${id}:`, error);
         throw new Error('Failed to delete costing sheet');
       }
+    },
+    updateUserProfile: async (_: any, { input }: { input: any }, context: any) => {
+      // In a real app, you'd get the user ID from the context
+      // For now, we'll hardcode a user to simulate an authenticated user
+      const googleId = 'temp-google-id'; // Replace with actual Google ID from auth context
+      const email = 'temp-user@example.com'; // Replace with actual email from auth context
+
+      const user = await User.findOneAndUpdate(
+        { googleId },
+        {
+          $set: {
+            ...input,
+            email, // Ensure email is set
+          },
+          $setOnInsert: { googleId } // Set googleId only on creation
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+
+      return user;
     },
   },
   Order: {

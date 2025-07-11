@@ -16,6 +16,7 @@ import ProductionScheduler from './components/ProductionScheduler';
 import QualityControl from './components/QualityControl';
 import ShippingModule from './components/ShippingModule';
 import InventoryManagement from './components/InventoryManagement';
+import { ProfileSetup } from './components/ProfileSetup';
 
 const queryClient = new QueryClient();
 
@@ -26,16 +27,17 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />}>
-              <Route index element={<Dashboard />} />
+              {/* <Route index element={<Dashboard />} /> */}
               <Route path="product-dev" element={<ProductDevelopment />} />
               <Route path="orders" element={<OrderManagement />} />
               <Route path="costing" element={<CostingCalculator />} />
-              <Route path="sourcing" element={<SourcingManagement />} />
+              {/* <Route path="sourcing" element={<SourcingManagement />} /> */}
               <Route path="production" element={<ProductionScheduler />} />
-              <Route path="quality" element={<QualityControl />} />
-              <Route path="shipping" element={<ShippingModule />} />
+              {/* <Route path="quality" element={<QualityControl />} /> */}
+              {/* <Route path="shipping" element={<ShippingModule />} /> */}
               <Route path="inventory" element={<InventoryManagement />} />
             </Route>
+            <Route path="/profile-setup" element={<ProfileSetup />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

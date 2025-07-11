@@ -20,21 +20,20 @@ import {
   Calculator,
   Search,
   Factory,
-  CheckSquare,
   Ship,
   Boxes,
 } from 'lucide-react';
 import { useDepartment, departmentConfig } from './DashboardLayout';
 
 const coreModules = [
-  { key: 'dashboard', to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  // { key: 'dashboard', to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'orders', to: '/orders', label: 'Order Management', icon: Package },
   { key: 'product-dev', to: '/product-dev', label: 'Product Development', icon: ClipboardList },
   { key: 'costing', to: '/costing', label: 'Costing Calculator', icon: Calculator },
-  { key: 'sourcing', to: '/sourcing', label: 'Sourcing Management', icon: Search },
+  // { key: 'sourcing', to: '/sourcing', label: 'Sourcing Management', icon: Search },
   { key: 'production', to: '/production', label: 'Production Scheduler', icon: Factory },
-  { key: 'quality', to: '/quality', label: 'Quality Control', icon: CheckSquare },
-  { key: 'shipping', to: '/shipping', label: 'Packing & Shipping', icon: Ship },
+  // { key: 'quality', to: '/quality', label: 'Quality Control', icon: CheckSquare },
+  // { key: 'shipping', to: '/shipping', label: 'Packing & Shipping', icon: Ship },
   { key: 'inventory', to: '/inventory', label: 'Inventory', icon: Boxes },
 ];
 

@@ -107,8 +107,12 @@ const ProductionScheduler: React.FC = () => {
   const { data: plansData, loading: plansLoading, error: plansError } = useQuery(GET_PRODUCTION_PLANS);
   const { data: resourcesData, loading: resourcesLoading, error: resourcesError } = useQuery(GET_RESOURCES);
 
-  const [createProductionPlan] = useMutation(CREATE_PRODUCTION_PLAN, {
+  const [createProductionPlan, { error: createPlanError }] = useMutation(CREATE_PRODUCTION_PLAN, {
     refetchQueries: [{ query: GET_PRODUCTION_PLANS }],
+    onError: (error) => {
+      console.error("Error creating production plan:", error.message);
+      // Here you could add a user-facing notification, e.g., using a toast library
+    },
   });
 
   const [createResource] = useMutation(CREATE_RESOURCE, {
@@ -145,18 +149,40 @@ const ProductionScheduler: React.FC = () => {
     setState((prevState: any) => ({ ...prevState, [name]: value }));
   };
 
+  const isPlanFormValid = () => {
+    const quantity = parseInt(String(newPlan.quantity), 10);
+    const assignedWorkers = parseInt(String(newPlan.assignedWorkers), 10);
+    const estimatedHours = parseInt(String(newPlan.estimatedHours), 10);
+    return (
+      newPlan.productName.trim() !== '' &&
+      quantity > 0 &&
+      assignedWorkers > 0 &&
+      estimatedHours > 0
+    );
+  };
+
   const handleAddPlan = async () => {
-    await createProductionPlan({
-      variables: {
-        input: {
-          ...newPlan,
-          quantity: parseInt(String(newPlan.quantity), 10),
-          assignedWorkers: parseInt(String(newPlan.assignedWorkers), 10),
-          estimatedHours: parseInt(String(newPlan.estimatedHours), 10),
+    if (!isPlanFormValid()) {
+      // Optionally, show a toast or alert to the user
+      console.error("Form is invalid");
+      return;
+    }
+    try {
+      await createProductionPlan({
+        variables: {
+          input: {
+            ...newPlan,
+            quantity: parseInt(String(newPlan.quantity), 10) || 0,
+            assignedWorkers: parseInt(String(newPlan.assignedWorkers), 10) || 0,
+            estimatedHours: parseInt(String(newPlan.estimatedHours), 10) || 0,
+          },
         },
-      },
-    });
-    setAddPlanDialogOpen(false);
+      });
+      setAddPlanDialogOpen(false);
+    } catch (e) {
+      // This will catch errors if the mutation hook itself throws an error, though onError is preferred for GraphQL errors.
+      console.error("Failed to execute createProductionPlan mutation:", e);
+    }
   };
 
   const handleAddResource = async () => {
@@ -355,7 +381,9 @@ const ProductionScheduler: React.FC = () => {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit" onClick={handleAddPlan}>Add Plan</Button>
+                    <Button type="submit" onClick={handleAddPlan} disabled={!isPlanFormValid()}>
+                      Add Plan
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>

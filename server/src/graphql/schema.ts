@@ -206,6 +206,15 @@ export const typeDefs = `
     updatedAt: String!
   }
 
+  type User {
+    id: ID!
+    googleId: String!
+    email: String!
+    username: String!
+    department: String!
+    preferredHomepage: String!
+  }
+
   # Input Types
   input ProductInput { name: String!, sku: String, category: String, season: String, designer: String, status: ProductStatus, developmentStage: DevelopmentStage, priority: Priority! }
   input OrderInput { productId: ID!, quantity: Int!, status: OrderStatus, priority: Priority, totalValue: Float!, customerName: String!, productType: String!, assignedTo: String! }
@@ -293,6 +302,11 @@ export const typeDefs = `
     selectedCurrency: Currency!
   }
 
+  input UpdateUserInput {
+    username: String!
+    department: String!
+  }
+
   # Queries
   type Query {
     products: [Product!]!
@@ -308,6 +322,8 @@ export const typeDefs = `
     inventoryItem(id: ID!): InventoryItem
     costingSheets: [CostingSheet!]!
     costingSheet(id: ID!): CostingSheet
+    me: User
+    user(googleId: String!): User
   }
 
   # Mutations
@@ -324,5 +340,6 @@ export const typeDefs = `
     deleteInventoryItem(id: ID!): InventoryItem
     saveCostingSheet(id: ID, input: SaveCostingSheetInput!): CostingSheet!
     deleteCostingSheet(id: ID!): CostingSheet
+    updateUserProfile(input: UpdateUserInput!): User
   }
 `;
