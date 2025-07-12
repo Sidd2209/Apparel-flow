@@ -35,7 +35,7 @@ export const startServer = async () => {
       cors({
         origin: [
           'http://localhost:5173',
-          'https://your-frontend-url.onrender.com' // IMPORTANT: Replace with your actual frontend URL
+          'https://apparel-flow-frontend.onrender.com' // Allow deployed frontend
         ],
         credentials: true
       }),
@@ -54,7 +54,9 @@ export const startServer = async () => {
     );
 
     const port = process.env.PORT || 8080;
-    app.listen(port, () => {
+    const host = '0.0.0.0'; // Required for Render deployment
+
+    app.listen({ host, port }, () => {
       console.log(`🚀 Server ready at http://localhost:${port}/graphql`);
     });
   } catch (error) {
