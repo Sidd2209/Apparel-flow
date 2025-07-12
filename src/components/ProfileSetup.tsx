@@ -53,7 +53,7 @@ export function ProfileSetup() {
 
       if (data.updateUserProfile) {
         updateUserProfile(data.updateUserProfile);
-        navigate('/');
+        navigate('/dashboard'); // Explicitly navigate to the dashboard
       }
     } catch (err) {
       console.error('Error updating profile:', err);
