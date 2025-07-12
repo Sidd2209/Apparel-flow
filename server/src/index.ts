@@ -3,6 +3,7 @@ import { expressMiddleware } from '@apollo/server/express4';
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import bodyParser from 'body-parser';
 import { resolvers } from './graphql/resolvers';
 import { typeDefs } from './graphql/schema';
 import dotenv from 'dotenv';
@@ -15,7 +16,6 @@ if (!MONGO_URI) {
 }
 
 const app = express();
-
 const server = new ApolloServer({
   typeDefs,
   resolvers,
@@ -28,15 +28,31 @@ export const startServer = async () => {
 
     await server.start();
 
-    app.use(cors());
+    // Apply all middleware, including Apollo Server, to the /graphql endpoint
     app.use(
       '/graphql',
+      // 1. CORS must be first to handle cross-origin requests.
+      cors({
+        origin: [
+          'http://localhost:5173',
+          'https://your-frontend-url.onrender.com' // IMPORTANT: Replace with your actual frontend URL
+        ],
+        credentials: true
+      }),
+      // 2. Body parser must be second to parse the request body.
+      bodyParser.json(),
+      // 3. Security headers.
+      (req, res, next) => {
+          res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+          res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
+          next();
+      },
+      // 4. Apollo Server middleware is last.
       expressMiddleware(server, {
         context: async ({ req }) => ({ token: req.headers.authorization }),
       }),
     );
 
-    // For local development
     const port = process.env.PORT || 8080;
     app.listen(port, () => {
       console.log(`🚀 Server ready at http://localhost:${port}/graphql`);

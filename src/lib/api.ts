@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || '/sourcing-api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export async function graphqlRequest(query: string, variables: Record<string, any> = {}) {
   const response = await fetch(API_URL, {

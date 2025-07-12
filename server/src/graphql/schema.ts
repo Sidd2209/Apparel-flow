@@ -210,9 +210,10 @@ export const typeDefs = `
     id: ID!
     googleId: String!
     email: String!
-    username: String!
-    department: String!
-    preferredHomepage: String!
+    name: String!
+    department: String
+    preferredHomepage: String
+    token: String
   }
 
   # Input Types
@@ -305,7 +306,7 @@ export const typeDefs = `
   input UpdateUserInput {
     googleId: String!
     email: String!
-    username: String!
+    name: String!
     department: String!
   }
 
@@ -326,6 +327,8 @@ export const typeDefs = `
     costingSheet(id: ID!): CostingSheet
     me: User
     user(googleId: String!): User
+    users: [User!]
+    userByToken(idToken: String!): User
   }
 
   # Mutations

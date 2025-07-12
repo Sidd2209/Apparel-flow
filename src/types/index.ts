@@ -7,8 +7,10 @@ export interface User {
   name: string;
   email: string;
   department?: Department;
+  preferredHomepage?: string;
   role?: Role;
   avatar?: string;
+  token?: string;
 }
 
 export type Department = 'merchandising' | 'logistics' | 'procurement' | 'sampling' | 'management';

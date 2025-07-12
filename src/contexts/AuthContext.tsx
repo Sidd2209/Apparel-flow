@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useApolloClient } from '@apollo/client';
 import { User, Department } from '@/types';
 
 interface AuthContextType {
   user: User | null;
   authLoading: boolean;
-  isProfileChecked: boolean;
-  setProfileChecked: (checked: boolean) => void;
   googleLogin: (userData: User) => void;
+  updateUserProfile: (updatedData: Partial<User>) => void;
   logout: () => void;
   switchDepartment: (department: Department) => void;
 }
@@ -16,7 +16,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
-  const [isProfileChecked, setProfileChecked] = useState<boolean>(false);
+  const client = useApolloClient();
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -25,24 +25,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(parsedUser);
       // If a user from storage has a department, we know their profile is complete.
       if (parsedUser.department) {
-        setProfileChecked(true);
+        // Removed setProfileChecked(true);
       }
     }
     setAuthLoading(false);
   }, []);
 
+  useEffect(() => {
+    if (user && (!user.name || !user.department)) {
+      // Removed navigation here
+    }
+  }, [user]);
+
   const googleLogin = (userData: User) => {
     // This just sets the user in state. The AuthGate will handle the rest.
     setUser(userData);
-    setProfileChecked(false); // Reset so the AuthGate runs the check
+    // Removed setProfileChecked(false); 
+    localStorage.setItem('authToken', userData.token || '');
     localStorage.setItem('user', JSON.stringify(userData));
   };
 
-  const logout = () => {
+  const updateUserProfile = (updatedData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...updatedData };
+      setUser(updatedUser);
+      // Removed setProfileChecked(false); 
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+  };
+
+  const logout = async () => {
     setUser(null);
-    setProfileChecked(false);
+    localStorage.removeItem('authToken');
     localStorage.removeItem('user');
-    // Navigation will be handled by the component that calls logout, or by a redirect in the router
+    await client.resetStore(); // Reset Apollo Client cache
   };
 
   const switchDepartment = (department: Department) => {
@@ -54,7 +70,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, authLoading, isProfileChecked, setProfileChecked, googleLogin, logout, switchDepartment }}>
+    <AuthContext.Provider value={{ user, authLoading, googleLogin, updateUserProfile, logout, switchDepartment }}>
       {children}
     </AuthContext.Provider>
   );

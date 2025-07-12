@@ -66,6 +66,28 @@ interface CostingSheet {
     updatedAt?: string;
 }
 
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, info: any) {
+    console.error('ErrorBoundary caught error:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return <div style={{ color: 'red', padding: 24 }}>
+        <h2>Something went wrong in Costing Calculator.</h2>
+        <pre>{this.state.error && this.state.error.toString()}</pre>
+      </div>;
+    }
+    return this.props.children;
+  }
+}
+
 const CostingCalculator: React.FC = () => {
   const { data, loading, error, refetch } = useQuery(GET_COSTING_SHEETS);
   const [saveCostingSheet, { loading: isSaving }] = useMutation(SAVE_COSTING_SHEET, {
@@ -99,7 +121,12 @@ const CostingCalculator: React.FC = () => {
     }
   }, [activeSheetId, data]);
 
-  const handleSave = () => {
+  useEffect(() => {
+    console.log('DEBUG: localSheetData', localSheetData);
+    console.log('DEBUG: data', data);
+  }, [localSheetData, data]);
+
+  const handleSave = async () => {
     if (!localSheetData || !localSheetData.id) return;
 
     const { id, __typename, costBreakdown, taxConfig, createdAt, updatedAt, ...rest } = localSheetData;
@@ -118,7 +145,11 @@ const CostingCalculator: React.FC = () => {
       },
     };
 
-    saveCostingSheet({ variables: { id: localSheetData.id, input } });
+    const res = await saveCostingSheet({ variables: { id: localSheetData.id, input } });
+    if (res && res.data && res.data.saveCostingSheet) {
+      setActiveSheetId(res.data.saveCostingSheet.id);
+      setLocalSheetData(res.data.saveCostingSheet);
+    }
   };
 
   const handleFieldChange = (path: string, value: any) => {
@@ -313,7 +344,7 @@ const CostingCalculator: React.FC = () => {
                           <div className="md:col-span-2"><Label>Material Name</Label><Input value={material.name} onChange={(e) => handleListItemChange('materials', index, 'name', e.target.value)} /></div>
                           <div><Label>Quantity</Label><Input type="number" value={material.quantity} onChange={(e) => handleListItemChange('materials', index, 'quantity', Number(e.target.value))} /></div>
                           <div><Label>Unit Cost</Label><Input type="number" step="0.01" value={material.unitCost} onChange={(e) => handleListItemChange('materials', index, 'unitCost', Number(e.target.value))} /></div>
-                          <div className="flex-1"><Label>Total</Label><div className="text-lg font-semibold">{currencySymbol[material.currency as keyof typeof currencySymbol]}{material.total.toFixed(2)}</div></div>
+                          <div className="flex-1"><Label>Total</Label><div className="text-lg font-semibold">{currencySymbol[material.currency as keyof typeof currencySymbol]}{(material.total ?? 0).toFixed(2)}</div></div>
                           <div><Button variant="outline" size="icon" onClick={() => removeListItem('materials', material.id)}><Trash2 className="h-4 w-4" /></Button></div>
                         </div></Card>
                       ))}
@@ -340,7 +371,7 @@ const CostingCalculator: React.FC = () => {
                             <div className="md:col-span-2"><Label>Operation</Label><Input value={labor.operation} onChange={(e) => handleListItemChange('labor', index, 'operation', e.target.value)} /></div>
                             <div><Label>Time (min)</Label><Input type="number" value={labor.timeMinutes} onChange={(e) => handleListItemChange('labor', index, 'timeMinutes', Number(e.target.value))} /></div>
                             <div><Label>Rate/Hour</Label><Input type="number" step="0.01" value={labor.ratePerHour} onChange={(e) => handleListItemChange('labor', index, 'ratePerHour', Number(e.target.value))} /></div>
-                            <div className="flex-1"><Label>Total</Label><div className="text-lg font-semibold">{currencySymbol[labor.currency as keyof typeof currencySymbol]}{labor.total.toFixed(2)}</div></div>
+                            <div className="flex-1"><Label>Total</Label><div className="text-lg font-semibold">{currencySymbol[labor.currency as keyof typeof currencySymbol]}{(labor.total ?? 0).toFixed(2)}</div></div>
                             <div><Button variant="outline" size="icon" onClick={() => removeListItem('labor', labor.id)}><Trash2 className="h-4 w-4" /></Button></div>
                           </div></Card>
                         ))}
@@ -388,13 +419,13 @@ const CostingCalculator: React.FC = () => {
             <TabsContent value="summary" className="flex-grow p-1">
                  <Card className="h-full"><CardHeader><CardTitle>Cost Summary</CardTitle></CardHeader><CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-lg">
-                        <div><Label className="text-sm font-medium text-gray-500">Total Material Cost</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateTotalMaterialCost().toFixed(2)}</div></div>
-                        <div><Label className="text-sm font-medium text-gray-500">Total Labor Cost</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateTotalLaborCost().toFixed(2)}</div></div>
-                        <div><Label className="text-sm font-medium text-gray-500">Total Overhead Cost</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateTotalOverheadCost().toFixed(2)}</div></div>
-                        <div className="font-bold"><Label className="text-sm font-medium text-gray-500">Subtotal</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateSubtotal().toFixed(2)}</div></div>
-                        <div><Label className="text-sm font-medium text-gray-500">Total Tax</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateTaxes().toFixed(2)}</div></div>
-                        <div className="font-bold"><Label className="text-sm font-medium text-gray-500">Total Cost (COGS)</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{calculateTotalCost().toFixed(2)}</div></div>
-                        <div className="col-span-2 border-t pt-4 mt-4"><Label className="text-sm font-medium text-gray-500">Recommended Selling Price</Label><div className="text-2xl font-bold text-green-600">{currencySymbol[localSheetData.selectedCurrency]}{calculateSellingPrice().toFixed(2)}</div></div>
+                        <div><Label className="text-sm font-medium text-gray-500">Total Material Cost</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{(calculateTotalMaterialCost() ?? 0).toFixed(2)}</div></div>
+                        <div><Label className="text-sm font-medium text-gray-500">Total Labor Cost</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{(calculateTotalLaborCost() ?? 0).toFixed(2)}</div></div>
+                        <div><Label className="text-sm font-medium text-gray-500">Total Overhead Cost</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{(calculateTotalOverheadCost() ?? 0).toFixed(2)}</div></div>
+                        <div className="font-bold"><Label className="text-sm font-medium text-gray-500">Subtotal</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{(calculateSubtotal() ?? 0).toFixed(2)}</div></div>
+                        <div><Label className="text-sm font-medium text-gray-500">Total Tax</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{(calculateTaxes() ?? 0).toFixed(2)}</div></div>
+                        <div className="font-bold"><Label className="text-sm font-medium text-gray-500">Total Cost (COGS)</Label><div className="font-semibold">{currencySymbol[localSheetData.selectedCurrency]}{(calculateTotalCost() ?? 0).toFixed(2)}</div></div>
+                        <div className="col-span-2 border-t pt-4 mt-4"><Label className="text-sm font-medium text-gray-500">Recommended Selling Price</Label><div className="text-2xl font-bold text-green-600">{currencySymbol[localSheetData.selectedCurrency]}{(calculateSellingPrice() ?? 0).toFixed(2)}</div></div>
                     </div>
                 </CardContent></Card>
             </TabsContent>
@@ -405,4 +436,6 @@ const CostingCalculator: React.FC = () => {
   );
 };
 
-export default CostingCalculator;
+export default function CostingCalculatorWithBoundary() {
+  return <ErrorBoundary><CostingCalculator /></ErrorBoundary>;
+}

@@ -1,11 +1,18 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import GoogleLoginButton from '@/components/GoogleLoginButton';
 
 const Index: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (user && (!user.department || !user.name)) {
+      navigate('/profile-setup', { replace: true });
+    }
+  }, [user, navigate]);
 
   if (!user) {
     return (
@@ -19,6 +26,11 @@ const Index: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  if (!user.department || !user.name) {
+    // Prevent render if profile incomplete (redirect will happen)
+    return null;
   }
 
   return (

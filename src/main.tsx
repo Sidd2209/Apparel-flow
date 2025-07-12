@@ -11,13 +11,13 @@ import { Toaster } from '@/components/ui/toaster';
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 if (!googleClientId) {
-  throw new Error("Missing Google Client ID. Please set VITE_GOOGLE_CLIENT_ID in your .env file.");
+  throw new Error('VITE_GOOGLE_CLIENT_ID is not defined in .env');
 }
 
 // Set up Apollo Client
 const client = new ApolloClient({
-  uri: import.meta.env.VITE_API_URL || 'http://localhost:8080/graphql',
   cache: new InMemoryCache(),
+  uri: import.meta.env.VITE_API_URL,
 });
 
 const queryClient = new QueryClient();

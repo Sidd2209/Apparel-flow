@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDepartmentKPIs, getDepartmentNotifications, mockOrders, mockProducts } from '@/data/mockData';
@@ -14,8 +13,8 @@ const Dashboard: React.FC = () => {
 
   if (!user) return null;
 
-  const kpis = getDepartmentKPIs(user.department);
-  const notifications = getDepartmentNotifications(user.department);
+  const kpis = getDepartmentKPIs(user.department) || [];
+  const notifications = getDepartmentNotifications(user.department) || [];
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const departmentTitles = {

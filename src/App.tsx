@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider } from './contexts/AuthContext';
 import Index from './pages/Index';
 import NotFound from './pages/NotFound';
+import LoginPage from './pages/LoginPage';
 
 // Import all page components
 import Dashboard from './components/Dashboard';
@@ -26,27 +27,35 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <AuthGate>
-            <Routes>
-              <Route path="/" element={<Index />}>
-                {/* <Route index element={<Dashboard />} /> */}
-              <Route path="product-dev" element={<ProductDevelopment />} />
-              <Route path="orders" element={<OrderManagement />} />
-              <Route path="costing" element={<CostingCalculator />} />
-              {/* <Route path="sourcing" element={<SourcingManagement />} /> */}
-              <Route path="production" element={<ProductionScheduler />} />
-              {/* <Route path="quality" element={<QualityControl />} /> */}
-              {/* <Route path="shipping" element={<ShippingModule />} /> */}
-              <Route path="inventory" element={<InventoryManagement />} />
-            </Route>
-            <Route path="/profile-setup" element={<ProfileSetup />} />
-            <Route path="*" element={<NotFound />} />
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/*"
+              element={
+                <AuthGate>
+                  <Routes>
+                    <Route path="/" element={<Index />}>
+                      <Route index element={<Dashboard />} />
+                      <Route path="product-dev" element={<ProductDevelopment />} />
+                      <Route path="orders" element={<OrderManagement />} />
+                      <Route path="costing" element={<CostingCalculator />} />
+                      {/* <Route path="sourcing" element={<SourcingManagement />} /> */}
+                      <Route path="production" element={<ProductionScheduler />} />
+                      {/* <Route path="quality" element={<QualityControl />} /> */}
+                      {/* <Route path="shipping" element={<ShippingModule />} /> */}
+                      <Route path="inventory" element={<InventoryManagement />} />
+                    </Route>
+                    <Route path="/profile-setup" element={<ProfileSetup />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </AuthGate>
+              }
+            />
           </Routes>
-        </AuthGate>
-      </AuthProvider>
-    </BrowserRouter>
-  </QueryClientProvider>
-</TooltipProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  </TooltipProvider>
 );
 
 export default App;

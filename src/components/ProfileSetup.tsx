@@ -11,45 +11,49 @@ const UPDATE_USER_PROFILE = gql`
   mutation UpdateUserProfile($input: UpdateUserInput!) {
     updateUserProfile(input: $input) {
       id
-      username
+      name
       department
       preferredHomepage
     }
   }
 `;
 
-const DEPARTMENTS = ['DESIGN', 'SOURCING', 'PRODUCTION', 'SALES', 'INVENTORY'];
+// Use uppercase department values to match backend
+const DEPARTMENTS = [
+  { value: 'DESIGN', label: 'Merchandising' },
+  { value: 'SOURCING', label: 'Logistics' },
+  { value: 'PRODUCTION', label: 'Procurement' },
+  { value: 'SALES', label: 'Sampling' },
+  { value: 'INVENTORY', label: 'Management' },
+];
 
 export function ProfileSetup() {
-  const [username, setUsername] = useState('');
+  const [name, setName] = useState('');
   const [department, setDepartment] = useState('');
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
 
-  const [updateUserProfile, { loading, error }] = useMutation(UPDATE_USER_PROFILE);
+  const [runProfileMutation, { loading, error }] = useMutation(UPDATE_USER_PROFILE);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !department || !user) return;
+    if (!name || !department || !user) return;
 
     try {
-      const { data } = await updateUserProfile({
+      const { data } = await runProfileMutation({
         variables: {
           input: {
-            googleId: user.id, // Pass the googleId from the user context
-            email: user.email, // Pass the email from the user context
-            username,
+            googleId: user.id,
+            email: user.email,
+            name,
             department,
           },
         },
       });
 
       if (data.updateUserProfile) {
-        if (data.updateUserProfile.preferredHomepage) {
-          navigate(data.updateUserProfile.preferredHomepage);
-        } else {
-          navigate('/'); // Fallback redirect
-        }
+        updateUserProfile(data.updateUserProfile);
+        navigate('/');
       }
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -66,13 +70,13 @@ export function ProfileSetup() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
               <Input
-                id="username"
+                id="name"
                 type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Choose a username"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter your name"
                 required
               />
             </div>
@@ -84,17 +88,17 @@ export function ProfileSetup() {
                 </SelectTrigger>
                 <SelectContent>
                   {DEPARTMENTS.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept.charAt(0).toUpperCase() + dept.slice(1).toLowerCase()}
+                    <SelectItem key={dept.value} value={dept.value}>
+                      {dept.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Saving...' : 'Save and Continue'}
+              {loading ? 'Saving...' : 'Save'}
             </Button>
-            {error && <p className="text-red-500 text-sm mt-2">Error: {error.message}</p>}
+            {error && <div className="text-red-500 text-sm">{error.message}</div>}
           </form>
         </CardContent>
       </Card>

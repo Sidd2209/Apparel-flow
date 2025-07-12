@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IUser extends Document {
   googleId: string;
   email: string;
-  username: string;
+  name: string;
   department: 'DESIGN' | 'SOURCING' | 'PRODUCTION' | 'SALES' | 'INVENTORY';
   preferredHomepage: string;
 }
@@ -11,13 +11,13 @@ export interface IUser extends Document {
 const UserSchema: Schema = new Schema({
   googleId: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
-  username: { type: String, required: true },
+  name: { type: String, required: true },
   department: {
     type: String,
-    required: true,
+    required: false,
     enum: ['DESIGN', 'SOURCING', 'PRODUCTION', 'SALES', 'INVENTORY'],
   },
-  preferredHomepage: { type: String, required: true },
+  preferredHomepage: { type: String, required: false },
 }, { timestamps: true });
 
 // Middleware to set the preferred homepage based on the selected department

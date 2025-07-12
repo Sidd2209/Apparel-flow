@@ -1,59 +1,47 @@
 import React, { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { gql, useLazyQuery } from '@apollo/client';
-import { useNavigate } from 'react-router-dom';
 
-const GET_USER = gql`
-  query GetUser($googleId: String!) {
-    user(googleId: $googleId) {
-      id
-      username
-      department
-      preferredHomepage
-    }
-  }
-`;
-
-interface AuthGateProps {
-  children: React.ReactNode;
-}
-
-export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
-  const { user, authLoading, isProfileChecked, setProfileChecked } = useAuth();
+export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, authLoading } = useAuth();
   const navigate = useNavigate();
-
-  const [getUser, { loading: userQueryLoading }] = useLazyQuery(GET_USER, {
-    onCompleted: (data) => {
-      if (data?.user?.department) {
-        navigate(data.user.preferredHomepage);
-      } else {
-        navigate('/profile-setup');
-      }
-      setProfileChecked(true);
-    },
-    onError: () => {
-      // Handle error, maybe navigate to a generic error page or back to login
-      navigate('/login');
-      setProfileChecked(true);
-    },
-  });
+  const location = useLocation();
 
   useEffect(() => {
-    // Only run the check if there's a user, it's not the initial load, and we haven't checked before
-    if (user && !authLoading && !isProfileChecked) {
-      if (!user.department) { // This implies a new Google login
-        getUser({ variables: { googleId: user.id } });
-      } else {
-        // This is a returning user from local storage, profile is already known
-        setProfileChecked(true);
-      }
+    if (authLoading) {
+      return; // Wait until the initial auth state is determined
     }
-  }, [user, authLoading, isProfileChecked, getUser, navigate, setProfileChecked]);
 
-  // Render a loading screen while we check auth or user profile
-  if (authLoading || userQueryLoading) {
-    return <div>Loading...</div>; // Or a proper spinner component
+    const isPublicRoute = ['/login', '/profile-setup'].includes(location.pathname);
+
+    // Case 1: User is not logged in
+    if (!user) {
+      if (!isPublicRoute) {
+        navigate('/login');
+      }
+      return;
+    }
+
+    // Case 2: User is logged in but profile is incomplete
+    if (!user.department) {
+      if (location.pathname !== '/profile-setup') {
+        navigate('/profile-setup');
+      }
+      return;
+    }
+
+    // Case 3: User is logged in with a complete profile
+    if (isPublicRoute) {
+      navigate(user.preferredHomepage || '/');
+    }
+
+  }, [user, authLoading, location.pathname, navigate]);
+
+  // Render a loading indicator while checking auth status
+  if (authLoading) {
+    return <div>Loading...</div>; 
   }
 
+  // If logic passes, render the requested child component
   return <>{children}</>;
 };
