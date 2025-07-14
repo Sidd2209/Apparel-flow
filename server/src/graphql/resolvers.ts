@@ -221,6 +221,28 @@ export const resolvers = {
         throw new Error(`Failed to create product: ${err.message}`);
       }
     },
+    updateProduct: async (_: any, { id, input }: { id: string, input: any }) => {
+      try {
+        const Product = require('../models/Product').default;
+        const updated = await Product.findByIdAndUpdate(id, input, { new: true });
+        if (!updated) throw new Error('Product not found');
+        return updated;
+      } catch (error) {
+        const err = error as Error;
+        throw new Error(`Failed to update product: ${err.message}`);
+      }
+    },
+    deleteProduct: async (_: any, { id }: { id: string }) => {
+      try {
+        const Product = require('../models/Product').default;
+        const deleted = await Product.findByIdAndDelete(id);
+        if (!deleted) throw new Error('Product not found');
+        return deleted;
+      } catch (error) {
+        const err = error as Error;
+        throw new Error(`Failed to delete product: ${err.message}`);
+      }
+    },
     createProductionPlan: async (_: any, { input }: { input: any }) => {
       try {
         const { ProductionPlan } = require('../models/ProductionPlan');

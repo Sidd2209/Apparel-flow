@@ -348,5 +348,7 @@ export const typeDefs = `
     saveCostingSheet(id: ID, input: SaveCostingSheetInput!): CostingSheet!
     deleteCostingSheet(id: ID!): CostingSheet
     updateUserProfile(input: UpdateUserInput!): User
+    updateProduct(id: ID!, input: ProductInput!): Product!
+    deleteProduct(id: ID!): Product!
   }
 `;
