@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, Loader2, PlusCircle } from 'lucide-react';
+import { AlertCircle, Loader2, PlusCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/Combobox";
+import { useNavigate } from 'react-router-dom';
 
 // GraphQL query to fetch all orders and their associated product details
 const GET_ORDERS = gql`
@@ -27,6 +28,7 @@ const GET_ORDERS = gql`
       quantity
       status
       priority
+      validDate
       createdAt
       product {
         id
@@ -54,6 +56,15 @@ const CREATE_ORDER = gql`
   }
 `;
 
+const DELETE_ORDER = gql`
+  mutation DeleteOrder($id: ID!) {
+    deleteOrder(id: $id) {
+      id
+      orderNumber
+    }
+  }
+`;
+
 // TypeScript interfaces for type safety
 interface Product {
   id: string;
@@ -66,27 +77,13 @@ interface Order {
   quantity: number;
   status: string;
   priority: string;
+  validDate: string;
   createdAt: string;
   product: {
     id: string;
     name: string;
   };
 }
-
-const getStatusVariant = (status: string) => {
-  switch (status) {
-    case 'COMPLETED':
-      return 'success';
-    case 'PENDING':
-      return 'default';
-    case 'SHIPPED':
-      return 'secondary';
-    case 'CANCELLED':
-      return 'destructive';
-    default:
-      return 'outline';
-  }
-};
 
 const getPriorityVariant = (priority: string) => {
   switch (priority) {
@@ -111,6 +108,12 @@ const OrderManagement: React.FC = () => {
       alert(`Failed to create order: ${err.message}`);
     },
   });
+  const [deleteOrder, { loading: deletingOrder }] = useMutation(DELETE_ORDER, {
+    refetchQueries: [{ query: GET_ORDERS }],
+    onError: (err) => {
+      alert(`Failed to delete order: ${err.message}`);
+    },
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // State for the new order form
@@ -121,6 +124,7 @@ const OrderManagement: React.FC = () => {
     customerName: '',
     productType: '',
     assignedTo: '',
+    validDate: '',
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,10 +140,10 @@ const OrderManagement: React.FC = () => {
     e.preventDefault();
 
     // Comprehensive validation
-    const requiredFields: (keyof typeof newOrder)[] = ['productId', 'quantity', 'totalValue', 'customerName', 'productType', 'assignedTo'];
+    const requiredFields: (keyof typeof newOrder)[] = ['productId', 'quantity', 'totalValue', 'customerName', 'productType', 'assignedTo', 'validDate'];
     for (const field of requiredFields) {
       if (!newOrder[field]) {
-        alert(`Please fill in the '${field}' field.`);
+        alert(`Please fill in the '${String(field)}' field.`);
         return;
       }
     }
@@ -154,6 +158,7 @@ const OrderManagement: React.FC = () => {
             customerName: newOrder.customerName,
             productType: newOrder.productType,
             assignedTo: newOrder.assignedTo,
+            validDate: newOrder.validDate,
             status: 'PENDING',
             priority: 'MEDIUM',
           },
@@ -167,10 +172,23 @@ const OrderManagement: React.FC = () => {
         customerName: '', 
         productType: '', 
         assignedTo: '', 
+        validDate: '',
       }); // Reset form
     } catch (err) {
       // This catch block is useful for network errors, but the onError handler above is better for GraphQL errors.
       console.error("A network or other unexpected error occurred:", err);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (window.confirm('Are you sure you want to delete this order?')) {
+      try {
+        await deleteOrder({
+          variables: { id: orderId },
+        });
+      } catch (err) {
+        console.error("Failed to delete order:", err);
+      }
     }
   };
 
@@ -219,9 +237,9 @@ const OrderManagement: React.FC = () => {
                 <TableHead>Order Number</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Quantity</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -234,12 +252,21 @@ const OrderManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>{order.quantity}</TableCell>
                     <TableCell>
-                      <Badge variant={getStatusVariant(order.status) as any}>{order.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getPriorityVariant(order.priority) as any}>{order.priority}</Badge>
+                      <Badge variant={getPriorityVariant(order.priority) as "default" | "secondary" | "destructive" | "outline"} className="text-xs">
+                        {order.priority}
+                      </Badge>
                     </TableCell>
                     <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteOrder(order.id)}
+                        disabled={deletingOrder}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
@@ -304,6 +331,16 @@ const OrderManagement: React.FC = () => {
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="assignedTo" className="text-right">Assigned To</Label>
                 <Input id="assignedTo" value={newOrder.assignedTo} onChange={handleInputChange} className="col-span-3" placeholder="e.g., 'Jane Smith'" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="validDate" className="text-right">Valid Date</Label>
+                <Input 
+                  id="validDate" 
+                  type="date" 
+                  value={newOrder.validDate} 
+                  onChange={handleInputChange} 
+                  className="col-span-3" 
+                />
               </div>
             </div>
             <DialogFooter>

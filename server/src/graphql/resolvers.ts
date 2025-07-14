@@ -166,12 +166,29 @@ export const resolvers = {
         if (!input.orderNumber) {
           input.orderNumber = `ORD-${Date.now()}`;
         }
+        // Convert validDate string to Date object
+        if (input.validDate) {
+          input.validDate = new Date(input.validDate);
+        }
         const order = new Order(input);
         await order.save();
         return order;
       } catch (error) {
         const err = error as Error;
         throw new Error(`Failed to create order: ${err.message}`);
+      }
+    },
+    deleteOrder: async (_: any, { id }: { id: string }) => {
+      try {
+        const Order = require('../models/Order').default;
+        const order = await Order.findByIdAndDelete(id);
+        if (!order) {
+          throw new Error('Order not found');
+        }
+        return order;
+      } catch (error) {
+        const err = error as Error;
+        throw new Error(`Failed to delete order: ${err.message}`);
       }
     },
     createProduct: async (_: any, { input }: { input: any }) => {
