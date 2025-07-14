@@ -220,7 +220,7 @@ const OrderManagement: React.FC = () => {
         <h1 className="text-2xl font-bold">Order Management</h1>
         <Button
           onClick={() => setIsModalOpen(true)}
-          className="h-12 px-6 text-lg ml-auto"
+          className="h-12 px-6 text-lg ml-auto bg-blue-500 hover:bg-blue-600 text-white"
         >
           <PlusCircle className="mr-2 h-8 w-5" />
           Add New Order
