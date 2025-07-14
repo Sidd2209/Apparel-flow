@@ -239,8 +239,8 @@ const CostingCalculator: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this sheet?')) {
       await deleteCostingSheet({
         variables: { id },
-        onCompleted: () => {
-          // Find the next available sheet (if any) after refetch
+        onCompleted: (res) => {
+          // Remove from UI and select next available sheet
           if (data?.costingSheets) {
             const remainingSheets = data.costingSheets.filter(sheet => sheet.id !== id);
             if (remainingSheets.length > 0) {
@@ -254,6 +254,7 @@ const CostingCalculator: React.FC = () => {
             setActiveSheetId(null);
             setLocalSheetData(null);
           }
+          refetch();
         }
       });
     }
