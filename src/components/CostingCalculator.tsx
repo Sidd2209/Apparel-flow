@@ -145,7 +145,15 @@ const CostingCalculator: React.FC = () => {
       },
     };
 
-    const res = await saveCostingSheet({ variables: { id: localSheetData.id, input } });
+    // Remove any fields not in SaveCostingSheetInput
+    // (name, costBreakdown, taxConfig, profitMargin, selectedCurrency)
+    const allowed = ['name', 'costBreakdown', 'taxConfig', 'profitMargin', 'selectedCurrency'];
+    const cleanInput: any = {};
+    for (const key of allowed) {
+      if (input[key] !== undefined) cleanInput[key] = input[key];
+    }
+
+    const res = await saveCostingSheet({ variables: { id: localSheetData.id, input: cleanInput } });
     if (res && res.data && res.data.saveCostingSheet) {
       setActiveSheetId(res.data.saveCostingSheet.id);
       setLocalSheetData(res.data.saveCostingSheet);
