@@ -90,6 +90,7 @@ export const resolvers = {
         if (!obj.validDate) {
           obj.validDate = obj.createdAt || new Date();
         }
+        obj.id = obj._id ? obj._id.toString() : undefined;
         return obj;
       });
     },
