@@ -237,7 +237,6 @@ const OrderManagement: React.FC = () => {
                 <TableHead>Order Number</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Quantity</TableHead>
-                <TableHead>Priority</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -251,12 +250,7 @@ const OrderManagement: React.FC = () => {
                       <div>{order.product.name}</div>
                     </TableCell>
                     <TableCell>{order.quantity}</TableCell>
-                    <TableCell>
-                      <Badge variant={getPriorityVariant(order.priority) as "default" | "secondary" | "destructive" | "outline"} className="text-xs">
-                        {order.priority}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{order.validDate ? new Date(order.validDate).toLocaleDateString() : ''}</TableCell>
                     <TableCell>
                       <Button
                         variant="destructive"
@@ -271,7 +265,7 @@ const OrderManagement: React.FC = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">No orders found.</TableCell>
+                  <TableCell colSpan={5} className="text-center">No orders found.</TableCell>
                 </TableRow>
               )}
             </TableBody>
