@@ -84,7 +84,13 @@ export const resolvers = {
     orders: async () => {
       const Order = require('../models/Order').default;
       const orders = await Order.find({});
-      return orders || [];
+      // Patch missing validDate for old orders
+      return orders.map((order: any) => {
+        if (!order.validDate) {
+          order.validDate = order.createdAt || new Date();
+        }
+        return order;
+      });
     },
     costingSheets: async () => {
       const { CostingSheet } = require('../models/CostingSheet');
