@@ -125,12 +125,16 @@ const ProductDevelopment: React.FC = () => {
   // Combined status/stage change handler
   const handleStatusStageChange = (val: string, product: any) => {
     const [status, developmentStage] = val.split('|');
-    updateProduct({ variables: { id: product.id, input: { ...product, status, developmentStage } } });
+    // Only send fields allowed by ProductInput
+    const { __typename, id, createdAt, updatedAt, samples, designFiles, ...input } = product;
+    updateProduct({ variables: { id: product.id, input: { ...input, status, developmentStage } } });
   };
   // Edit dialog submit handler
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProduct({ variables: { id: editProduct.id, input: editProduct } });
+    // Only send fields allowed by ProductInput
+    const { __typename, id, createdAt, updatedAt, samples, designFiles, ...input } = editProduct;
+    updateProduct({ variables: { id: editProduct.id, input } });
   };
 
   if (loading) return <p className="p-4">Loading...</p>;
