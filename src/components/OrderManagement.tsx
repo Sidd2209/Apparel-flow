@@ -215,16 +215,16 @@ const OrderManagement: React.FC = () => {
 
   return (
     <>
-      {/* Header Row: Switch from grid to flex for better right alignment */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Order Management</h1>
-        <Button
-          onClick={() => setIsModalOpen(true)}
-          className="h-12 px-6 text-lg ml-auto "
-        >
-          <PlusCircle className="mr-2 h-8 w-5" />
-          Add New Order
-        </Button>
+      <div className="grid grid-cols-4 md:grid-cols-10 gap-8 items-center">
+        <h1 className="text-2xl font-bold col-span-2 md:col-span-6">Order Management</h1>
+        <div className="col-span-4 md:col-span-2 justify-self-end">
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            className="h-12 px-6 text-lg">
+            <PlusCircle className="mr-2 h-8 w-5" />
+            Add New Order
+          </Button>
+        </div>
       </div>
       <Card className="w-full">
         <CardHeader>
