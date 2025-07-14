@@ -126,6 +126,20 @@ const CostingCalculator: React.FC = () => {
     console.log('DEBUG: data', data);
   }, [localSheetData, data]);
 
+  // Ensure activeSheetId is always valid after data changes (e.g., after delete)
+  useEffect(() => {
+    if (!data?.costingSheets) return;
+    if (activeSheetId && !data.costingSheets.find(s => s.id === activeSheetId)) {
+      // If the current activeSheetId is no longer present, select the first available or null
+      if (data.costingSheets.length > 0) {
+        setActiveSheetId(data.costingSheets[0].id);
+      } else {
+        setActiveSheetId(null);
+        setLocalSheetData(null);
+      }
+    }
+  }, [data?.costingSheets]);
+
   const handleSave = async () => {
     if (!localSheetData || !localSheetData.id) return;
 
