@@ -321,6 +321,17 @@ export const resolvers = {
         throw new Error(`Failed to save sheet: ${err.message}`);
       }
     },
+    deleteCostingSheet: async (_: any, { id }: { id: string }) => {
+      try {
+        const { CostingSheet } = require('../models/CostingSheet');
+        const deleted = await CostingSheet.findByIdAndDelete(id);
+        if (!deleted) throw new Error('Costing sheet not found');
+        return deleted;
+      } catch (error) {
+        const err = error as Error;
+        throw new Error(`Failed to delete costing sheet: ${err.message}`);
+      }
+    },
   },
   Order: {
     product: async (parent: { productId: string }) => {
