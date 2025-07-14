@@ -90,6 +90,12 @@ export const resolvers = {
         if (!obj.validDate) {
           obj.validDate = obj.createdAt || new Date();
         }
+        // Ensure validDate is always a string (ISO format)
+        if (obj.validDate instanceof Date) {
+          obj.validDate = obj.validDate.toISOString();
+        } else if (typeof obj.validDate === 'number') {
+          obj.validDate = new Date(obj.validDate).toISOString();
+        }
         // Ensure id is set from _id
         obj.id = obj._id ? obj._id.toString() : undefined;
         return obj;
