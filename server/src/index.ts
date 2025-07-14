@@ -23,37 +23,43 @@ const server = new ApolloServer({
   resolvers,
 });
 
+// Handle preflight requests for /graphql
+app.options('/graphql', cors({
+  origin: [
+    'http://localhost:5173',
+    'https://apparel-flow-frontend.onrender.com',
+    'https://apparel-flow-10.onrender.com'
+  ],
+  credentials: true
+}));
+
+app.use(
+  '/graphql',
+  cors({
+    origin: [
+      'http://localhost:5173',
+      'https://apparel-flow-frontend.onrender.com',
+      'https://apparel-flow-10.onrender.com'
+    ],
+    credentials: true
+  }),
+  bodyParser.json(),
+  (req, res, next) => {
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+    res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
+    next();
+  },
+  expressMiddleware(server, {
+    context: async ({ req }) => ({ token: req.headers.authorization }),
+  }),
+);
+
 export const startServer = async () => {
   try {
     await mongoose.connect(MONGO_URI);
     console.log('🔌 Successfully connected to MongoDB');
 
     await server.start();
-
-    // Apply all middleware, including Apollo Server, to the /graphql endpoint
-    app.use(
-      '/graphql',
-      // 1. CORS must be first to handle cross-origin requests.
-      cors({
-        origin: [
-          'http://localhost:5173',
-          'https://apparel-flow-frontend.onrender.com' // Allow deployed frontend
-        ],
-        credentials: true
-      }),
-      // 2. Body parser must be second to parse the request body.
-      bodyParser.json(),
-      // 3. Security headers.
-      (req, res, next) => {
-          res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-          res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
-          next();
-      },
-      // 4. Apollo Server middleware is last.
-      expressMiddleware(server, {
-        context: async ({ req }) => ({ token: req.headers.authorization }),
-      }),
-    );
 
     const port = process.env.PORT || 8080;
     const host = '0.0.0.0'; // Required for Render deployment
