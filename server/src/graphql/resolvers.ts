@@ -120,6 +120,19 @@ export const resolvers = {
           if (sheet.taxConfig.customsDuty === undefined || sheet.taxConfig.customsDuty === null) sheet.taxConfig.customsDuty = 0;
           if (sheet.taxConfig.otherTaxes === undefined || sheet.taxConfig.otherTaxes === null) sheet.taxConfig.otherTaxes = 0;
         }
+        // Patch totals for materials and labor
+        if (sheet.costBreakdown.materials) {
+          sheet.costBreakdown.materials = sheet.costBreakdown.materials.map((m: any) => ({
+            ...m,
+            total: (Number(m.quantity) || 0) * (Number(m.unitCost) || 0)
+          }));
+        }
+        if (sheet.costBreakdown.labor) {
+          sheet.costBreakdown.labor = sheet.costBreakdown.labor.map((l: any) => ({
+            ...l,
+            total: ((Number(l.timeMinutes) || 0) / 60) * (Number(l.ratePerHour) || 0)
+          }));
+        }
         return sheet;
       });
       return sheets || [];
@@ -289,6 +302,19 @@ export const resolvers = {
         if (!sheet.profitMargin && sheet.profitMargin !== 0) sheet.profitMargin = 0;
         if (!sheet.costBreakdown) sheet.costBreakdown = { materials: [], labor: [], overheads: [] };
         if (!sheet.taxConfig) sheet.taxConfig = { vatRate: 0, customsDuty: 0, otherTaxes: 0 };
+        // Patch totals for materials and labor
+        if (sheet.costBreakdown.materials) {
+          sheet.costBreakdown.materials = sheet.costBreakdown.materials.map((m: any) => ({
+            ...m,
+            total: (Number(m.quantity) || 0) * (Number(m.unitCost) || 0)
+          }));
+        }
+        if (sheet.costBreakdown.labor) {
+          sheet.costBreakdown.labor = sheet.costBreakdown.labor.map((l: any) => ({
+            ...l,
+            total: ((Number(l.timeMinutes) || 0) / 60) * (Number(l.ratePerHour) || 0)
+          }));
+        }
         return sheet;
       } catch (error) {
         const err = error as Error;
