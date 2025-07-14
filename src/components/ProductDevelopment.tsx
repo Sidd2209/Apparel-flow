@@ -109,7 +109,7 @@ const ProductDevelopment: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="sku" className="text-right">SKU</Label>
-                  <Input id="sku" name="sku" value={newProduct.sku} onChange={handleInputChange} className="col-span-3" />
+                  <Input id="sku" name="sku" value={newProduct.sku} onChange={handleInputChange} className="col-span-3" type="number" inputMode="numeric" pattern="[0-9]*" />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="category" className="text-right">Category</Label>
@@ -165,13 +165,30 @@ const ProductDevelopment: React.FC = () => {
                 <CardContent className="space-y-2">
                   <p className="text-sm text-gray-600">SKU: {product.sku || 'N/A'}</p>
                   <p className="text-sm text-gray-600">Category: {product.category || 'N/A'}</p>
+                  {/* Combined Status/Stage Dropdown */}
                   <div className="flex items-center gap-2">
-                    <Label>Status:</Label>
-                    <Badge variant="outline">{product.status.replace(/_/g, ' ')}</Badge>
+                    <Label>Status/Stage:</Label>
+                    <Select
+                      value={`${product.status}|${product.developmentStage}`}
+                      onValueChange={(val) => {/* TODO: call update mutation */}}
+                    >
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CONCEPT|IDEATION">Concept / Ideation</SelectItem>
+                        <SelectItem value="DESIGN|INITIAL_DESIGN">Design / Initial Design</SelectItem>
+                        <SelectItem value="SAMPLING|PROTO_SAMPLE">Sampling / Proto Sample</SelectItem>
+                        <SelectItem value="APPROVED|FINAL_APPROVAL">Approved / Final Approval</SelectItem>
+                        <SelectItem value="PRODUCTION_READY|TECH_PACK">Production Ready / Tech Pack</SelectItem>
+                        <SelectItem value="DISCONTINUED|FINAL_APPROVAL">Discontinued / Final Approval</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Label>Stage:</Label>
-                    <Badge>{product.developmentStage.replace(/_/g, ' ')}</Badge>
+                  {/* Edit/Delete Buttons */}
+                  <div className="flex gap-2 mt-2">
+                    <Button size="sm" variant="outline" onClick={() => {/* TODO: open edit dialog */}}>Edit</Button>
+                    <Button size="sm" variant="destructive" onClick={() => {/* TODO: call delete mutation */}}>Delete</Button>
                   </div>
                 </CardContent>
               </Card>
