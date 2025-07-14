@@ -47,6 +47,30 @@ const CREATE_PRODUCT = gql`
   }
 `;
 
+const DELETE_PRODUCT = gql`
+  mutation DeleteProduct($id: ID!) {
+    deleteProduct(id: $id) {
+      id
+    }
+  }
+`;
+
+const UPDATE_PRODUCT = gql`
+  mutation UpdateProduct($id: ID!, $input: ProductInput!) {
+    updateProduct(id: $id, input: $input) {
+      id
+      name
+      sku
+      category
+      status
+      developmentStage
+      season
+      designer
+      priority
+    }
+  }
+`;
+
 // Component
 const ProductDevelopment: React.FC = () => {
   const { loading, error, data, refetch } = useQuery(GET_PRODUCTS);
@@ -60,9 +84,21 @@ const ProductDevelopment: React.FC = () => {
       alert(`Error creating product: ${error.message}`);
     },
   });
-
+  const [deleteProduct] = useMutation(DELETE_PRODUCT, {
+    onCompleted: () => refetch(),
+    onError: (error) => alert(`Error deleting product: ${error.message}`),
+  });
+  const [updateProduct] = useMutation(UPDATE_PRODUCT, {
+    onCompleted: () => {
+      refetch();
+      setEditDialogOpen(false);
+    },
+    onError: (error) => alert(`Error updating product: ${error.message}`),
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProduct, setNewProduct] = useState({ name: '', sku: '', category: '', season: '', designer: '', priority: 'MEDIUM' });
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState<any>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -79,6 +115,22 @@ const ProductDevelopment: React.FC = () => {
 
     await createProduct({ variables: { input: newProduct } });
     setNewProduct({ name: '', sku: '', category: '', season: '', designer: '', priority: 'MEDIUM' }); // Reset form
+  };
+
+  // Edit dialog input handler
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEditProduct((prev: any) => ({ ...prev, [name]: value }));
+  };
+  // Combined status/stage change handler
+  const handleStatusStageChange = (val: string, product: any) => {
+    const [status, developmentStage] = val.split('|');
+    updateProduct({ variables: { id: product.id, input: { ...product, status, developmentStage } } });
+  };
+  // Edit dialog submit handler
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProduct({ variables: { id: editProduct.id, input: editProduct } });
   };
 
   if (loading) return <p className="p-4">Loading...</p>;
@@ -170,7 +222,7 @@ const ProductDevelopment: React.FC = () => {
                     <Label>Status/Stage:</Label>
                     <Select
                       value={`${product.status}|${product.developmentStage}`}
-                      onValueChange={(val) => {/* TODO: call update mutation */}}
+                      onValueChange={(val) => handleStatusStageChange(val, product)}
                     >
                       <SelectTrigger className="w-48">
                         <SelectValue placeholder="Select..." />
@@ -187,8 +239,8 @@ const ProductDevelopment: React.FC = () => {
                   </div>
                   {/* Edit/Delete Buttons */}
                   <div className="flex gap-2 mt-2">
-                    <Button size="sm" variant="outline" onClick={() => {/* TODO: open edit dialog */}}>Edit</Button>
-                    <Button size="sm" variant="destructive" onClick={() => {/* TODO: call delete mutation */}}>Delete</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setEditProduct(product); setEditDialogOpen(true); }}>Edit</Button>
+                    <Button size="sm" variant="destructive" onClick={() => { if(window.confirm('Delete this product?')) deleteProduct({ variables: { id: product.id } }); }}>Delete</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -234,6 +286,78 @@ const ProductDevelopment: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Product Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>Update the product details below.</DialogDescription>
+          </DialogHeader>
+          {editProduct && (
+            <form onSubmit={handleEditSubmit}>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">Name</Label>
+                  <Input id="name" name="name" value={editProduct.name} onChange={handleEditInputChange} className="col-span-3" required />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="sku" className="text-right">SKU</Label>
+                  <Input id="sku" name="sku" value={editProduct.sku} onChange={handleEditInputChange} className="col-span-3" type="number" inputMode="numeric" pattern="[0-9]*" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="category" className="text-right">Category</Label>
+                  <Input id="category" name="category" value={editProduct.category} onChange={handleEditInputChange} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="season" className="text-right">Season</Label>
+                  <Input id="season" name="season" value={editProduct.season} onChange={handleEditInputChange} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="designer" className="text-right">Designer</Label>
+                  <Input id="designer" name="designer" value={editProduct.designer} onChange={handleEditInputChange} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="priority" className="text-right">Priority</Label>
+                  <Select name="priority" value={editProduct.priority} onValueChange={val => setEditProduct((prev: any) => ({ ...prev, priority: val }))}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LOW">Low</SelectItem>
+                      <SelectItem value="MEDIUM">Medium</SelectItem>
+                      <SelectItem value="HIGH">High</SelectItem>
+                      <SelectItem value="URGENT">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="statusStage" className="text-right">Status/Stage</Label>
+                  <Select value={`${editProduct.status}|${editProduct.developmentStage}`} onValueChange={val => {
+                    const [status, developmentStage] = val.split('|');
+                    setEditProduct((prev: any) => ({ ...prev, status, developmentStage }));
+                  }}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CONCEPT|IDEATION">Concept / Ideation</SelectItem>
+                      <SelectItem value="DESIGN|INITIAL_DESIGN">Design / Initial Design</SelectItem>
+                      <SelectItem value="SAMPLING|PROTO_SAMPLE">Sampling / Proto Sample</SelectItem>
+                      <SelectItem value="APPROVED|FINAL_APPROVAL">Approved / Final Approval</SelectItem>
+                      <SelectItem value="PRODUCTION_READY|TECH_PACK">Production Ready / Tech Pack</SelectItem>
+                      <SelectItem value="DISCONTINUED|FINAL_APPROVAL">Discontinued / Final Approval</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
