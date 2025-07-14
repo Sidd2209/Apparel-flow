@@ -70,6 +70,7 @@ export const typeDefs = `
     customerName: String!
     productType: String!
     assignedTo: String!
+    validDate: String!
     createdAt: String!
     updatedAt: String
   }
@@ -218,7 +219,7 @@ export const typeDefs = `
 
   # Input Types
   input ProductInput { name: String!, sku: String, category: String, season: String, designer: String, status: ProductStatus, developmentStage: DevelopmentStage, priority: Priority! }
-  input OrderInput { productId: ID!, quantity: Int!, status: OrderStatus, priority: Priority, totalValue: Float!, customerName: String!, productType: String!, assignedTo: String! }
+  input OrderInput { productId: ID!, quantity: Int!, status: OrderStatus, priority: Priority, totalValue: Float!, customerName: String!, productType: String!, assignedTo: String!, validDate: String! }
   input VendorInput { name: String!, contactPerson: String, email: String! }
   input PurchaseOrderInput { vendorId: ID!, items: [OrderItemInput!]!, status: POStatus }
   input OrderItemInput { name: String!, quantity: Int!, unitPrice: Float! }
@@ -336,6 +337,7 @@ export const typeDefs = `
     createProduct(input: ProductInput!): Product!
     createOrder(input: OrderInput!): Order!
     updateOrderStatus(id: ID!, status: OrderStatus!): Order!
+    deleteOrder(id: ID!): Order!
     createVendor(input: VendorInput!): Vendor!
     createPurchaseOrder(input: PurchaseOrderInput!): PurchaseOrder!
     createProductionPlan(input: ProductionPlanInput!): ProductionPlan!

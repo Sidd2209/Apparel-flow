@@ -2,9 +2,11 @@ import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { useAuth } from '@/contexts/AuthContext';
 import { User } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
 const GoogleLoginButton = () => {
   const { googleLogin } = useAuth();
+  const navigate = useNavigate();
 
   const handleSuccess = (credentialResponse: CredentialResponse) => {
     if (credentialResponse.credential) {
@@ -18,6 +20,8 @@ const GoogleLoginButton = () => {
       };
 
       googleLogin(user);
+      // Redirect to profile setup if user has no department
+      navigate('/profile-setup');
     } else {
       console.error('Login failed: No credential returned from Google');
     }

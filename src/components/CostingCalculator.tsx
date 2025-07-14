@@ -227,9 +227,27 @@ const CostingCalculator: React.FC = () => {
     });
   };
   
-  const handleDeleteSheet = (id: string) => {
+  const handleDeleteSheet = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this sheet?')) {
-        deleteCostingSheet({ variables: { id } });
+      await deleteCostingSheet({
+        variables: { id },
+        onCompleted: () => {
+          // Find the next available sheet (if any) after refetch
+          if (data?.costingSheets) {
+            const remainingSheets = data.costingSheets.filter(sheet => sheet.id !== id);
+            if (remainingSheets.length > 0) {
+              setActiveSheetId(remainingSheets[0].id);
+              setLocalSheetData(JSON.parse(JSON.stringify(remainingSheets[0])));
+            } else {
+              setActiveSheetId(null);
+              setLocalSheetData(null);
+            }
+          } else {
+            setActiveSheetId(null);
+            setLocalSheetData(null);
+          }
+        }
+      });
     }
   };
 

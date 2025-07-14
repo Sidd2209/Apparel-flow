@@ -11,6 +11,7 @@ export interface IOrder extends Document {
   customerName: string;
   productType: string;
   assignedTo: string;
+  validDate: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +27,7 @@ const OrderSchema: Schema = new Schema({
   customerName: { type: String, required: true },
   productType: { type: String, required: true },
   assignedTo: { type: String, required: true },
+  validDate: { type: Date, required: true },
 }, { timestamps: true }); // timestamps will add createdAt and updatedAt fields automatically
 
 export default mongoose.model<IOrder>('Order', OrderSchema);

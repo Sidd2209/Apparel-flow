@@ -28,13 +28,18 @@ const LoginPage: React.FC = () => {
       if (data?.userByToken) {
         localStorage.setItem('authToken', data.userByToken.token);
         googleLogin(data.userByToken);
-        navigate('/');
+        if (!data.userByToken.department) {
+          navigate('/profile-setup');
+        } else {
+          navigate(data.userByToken.preferredHomepage || '/');
+        }
       }
     },
     onError: (error) => {
       console.error('GraphQL Error during login:', error.message);
     },
   });
+  
 
   const handleGoogleSuccess = (credentialResponse: CredentialResponse) => {
     console.log('Google Response:', credentialResponse);
