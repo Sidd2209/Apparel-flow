@@ -239,22 +239,9 @@ const CostingCalculator: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this sheet?')) {
       await deleteCostingSheet({
         variables: { id },
-        onCompleted: (res) => {
-          // Remove from UI and select next available sheet
-          if (data?.costingSheets) {
-            const remainingSheets = data.costingSheets.filter(sheet => sheet.id !== id);
-            if (remainingSheets.length > 0) {
-              setActiveSheetId(remainingSheets[0].id);
-              setLocalSheetData(JSON.parse(JSON.stringify(remainingSheets[0])));
-            } else {
-              setActiveSheetId(null);
-              setLocalSheetData(null);
-            }
-          } else {
-            setActiveSheetId(null);
-            setLocalSheetData(null);
-          }
-          refetch();
+        onCompleted: async () => {
+          // Let refetch handle updating the data, then useEffect will handle state
+          await refetch();
         }
       });
     }
