@@ -84,12 +84,13 @@ export const resolvers = {
     orders: async () => {
       const Order = require('../models/Order').default;
       const orders = await Order.find({});
-      // Patch missing validDate for old orders and return plain objects
+      // Patch missing validDate and id for old orders and return plain objects
       return orders.map((order: any) => {
         const obj = order.toObject ? order.toObject() : order;
         if (!obj.validDate) {
           obj.validDate = obj.createdAt || new Date();
         }
+        // Ensure id is set from _id
         obj.id = obj._id ? obj._id.toString() : undefined;
         return obj;
       });
