@@ -126,6 +126,17 @@ export const typeDefs = `
     user: String
   }
 
+  type InventoryReorder {
+    id: ID!
+    itemId: ID!
+    quantity: Int!
+    supplier: String
+    status: String!
+    note: String
+    createdAt: String!
+    user: String
+  }
+
   # Sourcing Types
   type Vendor {
     id: ID!
@@ -323,6 +334,14 @@ export const typeDefs = `
     department: String!
   }
 
+  input CreateInventoryReorderInput {
+    itemId: ID!
+    quantity: Int!
+    supplier: String
+    note: String
+    user: String
+  }
+
   # Queries
   type Query {
     products: [Product!]!
@@ -343,6 +362,7 @@ export const typeDefs = `
     users: [User!]
     userByToken(idToken: String!): User
     inventoryHistory(itemId: ID!): [InventoryHistory!]!
+    inventoryReorders(itemId: ID!): [InventoryReorder!]!
   }
 
   # Mutations
@@ -367,5 +387,6 @@ export const typeDefs = `
     updateUserProfile(input: UpdateUserInput!): User
     updateProduct(id: ID!, input: ProductInput!): Product!
     deleteProduct(id: ID!): Product!
+    createInventoryReorder(input: CreateInventoryReorderInput!): InventoryReorder!
   }
 `;

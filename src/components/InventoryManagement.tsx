@@ -611,14 +611,14 @@ const InventoryManagement: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Stock History for {viewHistoryItem?.name}</DialogTitle>
           </DialogHeader>
-          <div>
+          <div style={{ maxHeight: '300px', overflowY: 'auto', fontSize: '0.95em' }}>
             {historyLoading && <div>Loading...</div>}
             {historyError && <div>Error loading history.</div>}
             {historyData && historyData.inventoryHistory.length === 0 && <div>No history found.</div>}
             {historyData && historyData.inventoryHistory.length > 0 && (
-              <ul>
+              <ul style={{ paddingLeft: 16 }}>
                 {historyData.inventoryHistory.map((entry: any) => (
-                  <li key={entry.id} style={{ marginBottom: 8 }}>
+                  <li key={entry.id} style={{ marginBottom: 8, borderBottom: '1px solid #eee', paddingBottom: 4 }}>
                     <b>{entry.action}</b> | Change: {entry.quantityChange} | {entry.previousStock} → {entry.newStock}
                     <br />
                     {entry.note && <span>Note: {entry.note} | </span>}
@@ -635,64 +635,76 @@ const InventoryManagement: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Reorder {reorderItem?.name}</DialogTitle>
           </DialogHeader>
-          <div>
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                if (!reorderItem) return;
-                createReorder({
-                  variables: {
-                    input: {
-                      itemId: reorderItem.id,
-                      quantity: parseInt(reorderForm.quantity, 10),
-                      supplier: reorderForm.supplier,
-                      note: reorderForm.note,
-                      user: null // Optionally, set user info
-                    }
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              if (!reorderItem) return;
+              if (!reorderForm.quantity || isNaN(Number(reorderForm.quantity)) || Number(reorderForm.quantity) <= 0) return;
+              createReorder({
+                variables: {
+                  input: {
+                    itemId: reorderItem.id,
+                    quantity: parseInt(reorderForm.quantity, 10),
+                    supplier: reorderForm.supplier,
+                    note: reorderForm.note,
+                    user: null
                   }
-                });
-              }}
-              className="space-y-2"
-            >
-              <input
-                type="number"
-                placeholder="Quantity"
-                value={reorderForm.quantity}
-                onChange={e => setReorderForm(f => ({ ...f, quantity: e.target.value }))}
-                required
-              />
-              <input
-                type="text"
-                placeholder="Supplier"
-                value={reorderForm.supplier}
-                onChange={e => setReorderForm(f => ({ ...f, supplier: e.target.value }))}
-              />
-              <input
-                type="text"
-                placeholder="Note"
-                value={reorderForm.note}
-                onChange={e => setReorderForm(f => ({ ...f, note: e.target.value }))}
-              />
+                }
+              }).then(() => {
+                setReorderForm({ quantity: '', supplier: '', note: '' });
+                setReorderItem(null);
+              });
+            }}
+            className="space-y-3"
+            style={{ minWidth: 280 }}
+          >
+            <Label htmlFor="quantity">Quantity</Label>
+            <Input
+              id="quantity"
+              type="number"
+              placeholder="Quantity"
+              value={reorderForm.quantity}
+              onChange={e => setReorderForm(f => ({ ...f, quantity: e.target.value }))}
+              min={1}
+              required
+            />
+            <Label htmlFor="supplier">Supplier</Label>
+            <Input
+              id="supplier"
+              type="text"
+              placeholder="Supplier"
+              value={reorderForm.supplier}
+              onChange={e => setReorderForm(f => ({ ...f, supplier: e.target.value }))}
+            />
+            <Label htmlFor="note">Note</Label>
+            <Input
+              id="note"
+              type="text"
+              placeholder="Note"
+              value={reorderForm.note}
+              onChange={e => setReorderForm(f => ({ ...f, note: e.target.value }))}
+            />
+            <DialogFooter>
               <Button type="submit" disabled={reorderLoading}>
                 {reorderLoading ? 'Reordering...' : 'Submit Reorder'}
               </Button>
-            </form>
+            </DialogFooter>
             {reorderError && <div style={{ color: 'red' }}>Error: {reorderError.message}</div>}
-            <hr />
-            <div>
-              <b>Reorder History:</b>
-              {reorderHistoryLoading && <div>Loading...</div>}
-              {reorderData && reorderData.inventoryReorders.length === 0 && <div>No reorders yet.</div>}
-              {reorderData && reorderData.inventoryReorders.length > 0 && (
-                <ul>
-                  {reorderData.inventoryReorders.map((r: any) => (
-                    <li key={r.id}>
-                      Qty: {r.quantity} | Supplier: {r.supplier || 'N/A'} | {r.status} | {r.note} | {new Date(r.createdAt).toLocaleString()}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+          </form>
+          <hr />
+          <div style={{ maxHeight: 120, overflowY: 'auto', fontSize: '0.95em' }}>
+            <b>Reorder History:</b>
+            {reorderHistoryLoading && <div>Loading...</div>}
+            {reorderData && reorderData.inventoryReorders.length === 0 && <div>No reorders yet.</div>}
+            {reorderData && reorderData.inventoryReorders.length > 0 && (
+              <ul style={{ paddingLeft: 16 }}>
+                {reorderData.inventoryReorders.map((r: any) => (
+                  <li key={r.id} style={{ marginBottom: 6, borderBottom: '1px solid #eee', paddingBottom: 2 }}>
+                    Qty: {r.quantity} | Supplier: {r.supplier || 'N/A'} | {r.status} | {r.note} | {new Date(r.createdAt).toLocaleString()}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </DialogContent>
       </Dialog>

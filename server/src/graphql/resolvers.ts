@@ -146,6 +146,10 @@ export const resolvers = {
       const InventoryHistory = require('../models/InventoryHistory').default;
       return await InventoryHistory.find({ itemId }).sort({ createdAt: -1 });
     },
+    inventoryReorders: async (_: any, { itemId }: { itemId: string }) => {
+      const InventoryReorder = require('../models/InventoryReorder').default;
+      return await InventoryReorder.find({ itemId }).sort({ createdAt: -1 });
+    },
     resources: async () => {
       const { Resource } = require('../models/Resource');
       const resources = await Resource.find({});
@@ -465,6 +469,29 @@ export const resolvers = {
         const err = error as Error;
         throw new Error(`Failed to create inventory item: ${err.message}`);
       }
+    },
+    createInventoryReorder: async (_: any, { input }: { input: any }) => {
+      const InventoryReorder = require('../models/InventoryReorder').default;
+      const InventoryHistory = require('../models/InventoryHistory').default;
+      // Create reorder
+      const reorder = new InventoryReorder({
+        ...input,
+        status: 'REQUESTED',
+        createdAt: new Date(),
+      });
+      await reorder.save();
+      // Record history
+      await InventoryHistory.create({
+        itemId: input.itemId,
+        action: 'REORDER',
+        quantityChange: input.quantity,
+        previousStock: null,
+        newStock: null,
+        note: input.note || 'Reorder requested',
+        user: input.user || null,
+        createdAt: new Date(),
+      });
+      return reorder;
     },
     // Placeholder for reorder mutation and history recording (to be implemented in reorder step)
   },
