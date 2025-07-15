@@ -391,28 +391,28 @@ export const resolvers = {
         throw new Error(`Failed to soft delete inventory item: ${err.message}`);
       }
     },
-  },
-  updateInventoryItem: async (_: any, { id, input }: { id: string, input: any }) => {
-    try {
-      const InventoryItem = require('../models/InventoryItem').default;
-      // Calculate totalValue if currentStock or unitCost is being updated
-      if (input.currentStock !== undefined || input.unitCost !== undefined) {
-        // Fetch the current item to get the other value if not provided
-        const current = await InventoryItem.findById(id);
-        if (!current) throw new Error('Inventory item not found');
-        input.totalValue = 
-          (input.currentStock !== undefined ? input.currentStock : current.currentStock) *
-          (input.unitCost !== undefined ? input.unitCost : current.unitCost);
+    updateInventoryItem: async (_: any, { id, input }: { id: string, input: any }) => {
+      try {
+        const InventoryItem = require('../models/InventoryItem').default;
+        // Calculate totalValue if currentStock or unitCost is being updated
+        if (input.currentStock !== undefined || input.unitCost !== undefined) {
+          // Fetch the current item to get the other value if not provided
+          const current = await InventoryItem.findById(id);
+          if (!current) throw new Error('Inventory item not found');
+          input.totalValue = 
+            (input.currentStock !== undefined ? input.currentStock : current.currentStock) *
+            (input.unitCost !== undefined ? input.unitCost : current.unitCost);
+        }
+        // Always update lastUpdated
+        input.lastUpdated = new Date().toISOString();
+        const updated = await InventoryItem.findByIdAndUpdate(id, input, { new: true });
+        if (!updated) throw new Error('Inventory item not found');
+        return updated;
+      } catch (error) {
+        const err = error as Error;
+        throw new Error(`Failed to update inventory item: ${err.message}`);
       }
-      // Always update lastUpdated
-      input.lastUpdated = new Date().toISOString();
-      const updated = await InventoryItem.findByIdAndUpdate(id, input, { new: true });
-      if (!updated) throw new Error('Inventory item not found');
-      return updated;
-    } catch (error) {
-      const err = error as Error;
-      throw new Error(`Failed to update inventory item: ${err.message}`);
-    }
+    },
   },
   Order: {
     product: async (parent: { productId: string }) => {
