@@ -271,6 +271,28 @@ export const resolvers = {
         throw new Error(`Failed to create production plan: ${err.message}`);
       }
     },
+    updateProductionPlan: async (_: any, { id, input }: { id: string, input: any }) => {
+      try {
+        const { ProductionPlan } = require('../models/ProductionPlan');
+        const updated = await ProductionPlan.findByIdAndUpdate(id, input, { new: true });
+        if (!updated) throw new Error('Production plan not found');
+        return updated;
+      } catch (error) {
+        const err = error as Error;
+        throw new Error(`Failed to update production plan: ${err.message}`);
+      }
+    },
+    deleteProductionPlan: async (_: any, { id }: { id: string }) => {
+      try {
+        const { ProductionPlan } = require('../models/ProductionPlan');
+        const deleted = await ProductionPlan.findByIdAndDelete(id);
+        if (!deleted) throw new Error('Production plan not found');
+        return deleted;
+      } catch (error) {
+        const err = error as Error;
+        throw new Error(`Failed to delete production plan: ${err.message}`);
+      }
+    },
     createResource: async (_: any, { input }: { input: any }) => {
       try {
         const { Resource } = require('../models/Resource');
@@ -282,6 +304,28 @@ export const resolvers = {
       } catch (error) {
         const err = error as Error;
         throw new Error(`Failed to create resource: ${err.message}`);
+      }
+    },
+    updateResource: async (_: any, { id, input }: { id: string, input: any }) => {
+      try {
+        const { Resource } = require('../models/Resource');
+        const updated = await Resource.findByIdAndUpdate(id, input, { new: true });
+        if (!updated) throw new Error('Resource not found');
+        return updated;
+      } catch (error) {
+        const err = error as Error;
+        throw new Error(`Failed to update resource: ${err.message}`);
+      }
+    },
+    deleteResource: async (_: any, { id }: { id: string }) => {
+      try {
+        const { Resource } = require('../models/Resource');
+        const deleted = await Resource.findByIdAndDelete(id);
+        if (!deleted) throw new Error('Resource not found');
+        return deleted;
+      } catch (error) {
+        const err = error as Error;
+        throw new Error(`Failed to delete resource: ${err.message}`);
       }
     },
     saveCostingSheet: async (_: any, { id, input }: { id?: string, input: any }) => {

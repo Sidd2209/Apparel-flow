@@ -341,12 +341,16 @@ export const typeDefs = `
     createVendor(input: VendorInput!): Vendor!
     createPurchaseOrder(input: PurchaseOrderInput!): PurchaseOrder!
     createProductionPlan(input: ProductionPlanInput!): ProductionPlan!
+    updateProductionPlan(id: ID!, input: ProductionPlanInput!): ProductionPlan!
+    deleteProductionPlan(id: ID!): ProductionPlan!
     createResource(input: ResourceInput!): Resource!
+    updateResource(id: ID!, input: ResourceInput!): Resource!
+    deleteResource(id: ID!): Resource!
     createInventoryItem(input: CreateInventoryItemInput!): InventoryItem!
     updateInventoryItem(id: ID!, input: UpdateInventoryItemInput!): InventoryItem
     deleteInventoryItem(id: ID!): InventoryItem
-    saveCostingSheet(id: ID, input: SaveCostingSheetInput!): CostingSheet!
-    deleteCostingSheet(id: ID!): CostingSheet
+    saveCostingSheet(id: ID!, input: SaveCostingSheetInput!): CostingSheet!
+    deleteCostingSheet(id: ID!): CostingSheet!
     updateUserProfile(input: UpdateUserInput!): User
     updateProduct(id: ID!, input: ProductInput!): Product!
     deleteProduct(id: ID!): Product!
