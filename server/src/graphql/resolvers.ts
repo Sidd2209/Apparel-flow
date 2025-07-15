@@ -473,6 +473,7 @@ export const resolvers = {
     createInventoryReorder: async (_: any, { input }: { input: any }) => {
       const InventoryReorder = require('../models/InventoryReorder').default;
       const InventoryHistory = require('../models/InventoryHistory').default;
+      const InventoryItem = require('../models/InventoryItem').default;
       // Create reorder
       const reorder = new InventoryReorder({
         ...input,
@@ -480,13 +481,16 @@ export const resolvers = {
         createdAt: new Date(),
       });
       await reorder.save();
+      // Fetch current stock for history
+      const item = await InventoryItem.findById(input.itemId);
+      const stock = item ? item.currentStock : 0;
       // Record history
       await InventoryHistory.create({
         itemId: input.itemId,
         action: 'REORDER',
         quantityChange: input.quantity,
-        previousStock: null,
-        newStock: null,
+        previousStock: stock,
+        newStock: stock,
         note: input.note || 'Reorder requested',
         user: input.user || null,
         createdAt: new Date(),

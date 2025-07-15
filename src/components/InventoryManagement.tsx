@@ -110,6 +110,7 @@ interface InventoryItem {
   lastUpdated: string;
   supplier?: string;
   __typename?: string;
+  deleted?: boolean; // Added for frontend filtering
 }
 
 type FormDataType = Omit<InventoryItem, 'id' | 'totalValue' | 'lastUpdated'> | InventoryItem | null;
@@ -148,6 +149,9 @@ const InventoryManagement: React.FC = () => {
   });
   const [deleteInventoryItem] = useMutation(DELETE_INVENTORY_ITEM, {
     refetchQueries: [{ query: GET_INVENTORY_ITEMS }],
+    onCompleted: () => {
+      refetch(); // Force refetch after deletion
+    },
   });
 
   const { data: historyData, loading: historyLoading, error: historyError } = useQuery(
@@ -233,7 +237,7 @@ const InventoryManagement: React.FC = () => {
     }
   };
 
-  const inventory: InventoryItem[] = data?.inventoryItems || [];
+  const inventory: InventoryItem[] = (data?.inventoryItems || []).filter(item => !('deleted' in item) || !item.deleted);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
