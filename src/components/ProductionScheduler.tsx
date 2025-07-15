@@ -104,6 +104,13 @@ const ProductionScheduler: React.FC = () => {
   const [isAddPlanDialogOpen, setAddPlanDialogOpen] = useState(false);
   const [isAddResourceDialogOpen, setAddResourceDialogOpen] = useState(false);
 
+  // Add state for dialogs and selected items
+  const [viewPlan, setViewPlan] = useState<ProductionPlan | null>(null);
+  const [editPlan, setEditPlan] = useState<ProductionPlan | null>(null);
+  const [deletePlan, setDeletePlan] = useState<ProductionPlan | null>(null);
+  const [editResource, setEditResource] = useState<Resource | null>(null);
+  const [deleteResource, setDeleteResource] = useState<Resource | null>(null);
+
   const { data: plansData, loading: plansLoading, error: plansError } = useQuery(GET_PRODUCTION_PLANS);
   const { data: resourcesData, loading: resourcesLoading, error: resourcesError } = useQuery(GET_RESOURCES);
 
@@ -446,8 +453,9 @@ const ProductionScheduler: React.FC = () => {
                           </div>
                           <Progress value={plan.progress} className="w-full" />
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm">View Details</Button>
-                            <Button variant="outline" size="sm">Update</Button>
+                            <Button variant="outline" size="sm" onClick={() => setViewPlan(plan)}>View Details</Button>
+                            <Button variant="outline" size="sm" onClick={() => setEditPlan(plan)}>Update</Button>
+                            <Button variant="destructive" size="sm" onClick={() => setDeletePlan(plan)}>Delete</Button>
                           </div>
                         </div>
                       </div>
@@ -555,6 +563,10 @@ const ProductionScheduler: React.FC = () => {
                           </Badge>
                         </div>
                       </div>
+                      <div className="flex gap-2 mt-2">
+                        <Button size="sm" variant="outline" onClick={() => setEditResource(resource)}>Update</Button>
+                        <Button size="sm" variant="destructive" onClick={() => setDeleteResource(resource)}>Delete</Button>
+                      </div>
                     </div>
                   </Card>
                 ))}
@@ -632,6 +644,104 @@ const ProductionScheduler: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Add dialogs for view, edit, and delete for plans and resources */}
+      <Dialog open={!!viewPlan} onOpenChange={() => setViewPlan(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Production Plan Details</DialogTitle></DialogHeader>
+          {viewPlan && (
+            <div className="space-y-2">
+              <div><b>Product Name:</b> {viewPlan.productName}</div>
+              <div><b>Quantity:</b> {viewPlan.quantity}</div>
+              <div><b>Start Date:</b> {viewPlan.startDate}</div>
+              <div><b>End Date:</b> {viewPlan.endDate}</div>
+              <div><b>Status:</b> {viewPlan.status}</div>
+              <div><b>Priority:</b> {viewPlan.priority}</div>
+              <div><b>Assigned Workers:</b> {viewPlan.assignedWorkers}</div>
+              <div><b>Estimated Hours:</b> {viewPlan.estimatedHours}</div>
+              <div><b>Actual Hours:</b> {viewPlan.actualHours}</div>
+              <div><b>Progress:</b> {viewPlan.progress}%</div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!editPlan} onOpenChange={() => setEditPlan(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Update Production Plan</DialogTitle></DialogHeader>
+          {editPlan && (
+            <form onSubmit={e => { e.preventDefault(); /* TODO: call update mutation */ setEditPlan(null); }} className="space-y-2">
+              <Input value={editPlan.productName} onChange={e => setEditPlan({ ...editPlan, productName: e.target.value })} placeholder="Product Name" />
+              <Input type="number" value={editPlan.quantity} onChange={e => setEditPlan({ ...editPlan, quantity: Number(e.target.value) })} placeholder="Quantity" />
+              <Input type="date" value={editPlan.startDate} onChange={e => setEditPlan({ ...editPlan, startDate: e.target.value })} placeholder="Start Date" />
+              <Input type="date" value={editPlan.endDate} onChange={e => setEditPlan({ ...editPlan, endDate: e.target.value })} placeholder="End Date" />
+              <Input type="number" value={editPlan.assignedWorkers} onChange={e => setEditPlan({ ...editPlan, assignedWorkers: Number(e.target.value) })} placeholder="Assigned Workers" />
+              <Input type="number" value={editPlan.estimatedHours} onChange={e => setEditPlan({ ...editPlan, estimatedHours: Number(e.target.value) })} placeholder="Estimated Hours" />
+              <Input type="number" value={editPlan.actualHours} onChange={e => setEditPlan({ ...editPlan, actualHours: Number(e.target.value) })} placeholder="Actual Hours" />
+              <Select value={editPlan.status} onValueChange={v => setEditPlan({ ...editPlan, status: v as any })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PLANNED">Planned</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="DELAYED">Delayed</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={editPlan.priority} onValueChange={v => setEditPlan({ ...editPlan, priority: v as any })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button type="submit">Save Changes</Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!deletePlan} onOpenChange={() => setDeletePlan(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Delete Production Plan</DialogTitle></DialogHeader>
+          <div>Are you sure you want to delete this plan?</div>
+          <DialogFooter>
+            <Button variant="destructive" onClick={() => { /* TODO: call delete mutation */ setDeletePlan(null); }}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeletePlan(null)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!editResource} onOpenChange={() => setEditResource(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Update Resource</DialogTitle></DialogHeader>
+          {editResource && (
+            <form onSubmit={e => { e.preventDefault(); /* TODO: call update mutation */ setEditResource(null); }} className="space-y-2">
+              <Input value={editResource.name} onChange={e => setEditResource({ ...editResource, name: e.target.value })} placeholder="Name" />
+              <Input type="number" value={editResource.capacity} onChange={e => setEditResource({ ...editResource, capacity: Number(e.target.value) })} placeholder="Capacity" />
+              <Input type="number" value={editResource.allocated} onChange={e => setEditResource({ ...editResource, allocated: Number(e.target.value) })} placeholder="Allocated" />
+              <Input type="number" value={editResource.available} onChange={e => setEditResource({ ...editResource, available: Number(e.target.value) })} placeholder="Available" />
+              <Input type="number" value={editResource.efficiency} onChange={e => setEditResource({ ...editResource, efficiency: Number(e.target.value) })} placeholder="Efficiency" />
+              <Select value={editResource.type} onValueChange={v => setEditResource({ ...editResource, type: v as any })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MACHINE">Machine</SelectItem>
+                  <SelectItem value="WORKER">Worker</SelectItem>
+                  <SelectItem value="MATERIAL">Material</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button type="submit">Save Changes</Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!deleteResource} onOpenChange={() => setDeleteResource(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Delete Resource</DialogTitle></DialogHeader>
+          <div>Are you sure you want to delete this resource?</div>
+          <DialogFooter>
+            <Button variant="destructive" onClick={() => { /* TODO: call delete mutation */ setDeleteResource(null); }}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteResource(null)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
