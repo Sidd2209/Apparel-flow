@@ -142,6 +142,10 @@ export const resolvers = {
       const items = await InventoryItem.find({ deleted: { $ne: true } });
       return items || [];
     },
+    inventoryHistory: async (_: any, { itemId }: { itemId: string }) => {
+      const InventoryHistory = require('../models/InventoryHistory').default;
+      return await InventoryHistory.find({ itemId }).sort({ createdAt: -1 });
+    },
     resources: async () => {
       const { Resource } = require('../models/Resource');
       const resources = await Resource.find({});
@@ -385,6 +389,18 @@ export const resolvers = {
           { new: true }
         );
         if (!deleted) throw new Error('Inventory item not found');
+
+        const InventoryHistory = require('../models/InventoryHistory').default;
+        await InventoryHistory.create({
+          itemId: id,
+          action: 'DELETE',
+          quantityChange: 0,
+          previousStock: deleted.currentStock,
+          newStock: deleted.currentStock,
+          note: 'Item deleted',
+          user: null
+        });
+
         return deleted;
       } catch (error) {
         const err = error as Error;
@@ -394,11 +410,11 @@ export const resolvers = {
     updateInventoryItem: async (_: any, { id, input }: { id: string, input: any }) => {
       try {
         const InventoryItem = require('../models/InventoryItem').default;
+        const current = await InventoryItem.findById(id);
+        if (!current) throw new Error('Inventory item not found');
+
         // Calculate totalValue if currentStock or unitCost is being updated
         if (input.currentStock !== undefined || input.unitCost !== undefined) {
-          // Fetch the current item to get the other value if not provided
-          const current = await InventoryItem.findById(id);
-          if (!current) throw new Error('Inventory item not found');
           input.totalValue = 
             (input.currentStock !== undefined ? input.currentStock : current.currentStock) *
             (input.unitCost !== undefined ? input.unitCost : current.unitCost);
@@ -407,12 +423,50 @@ export const resolvers = {
         input.lastUpdated = new Date().toISOString();
         const updated = await InventoryItem.findByIdAndUpdate(id, input, { new: true });
         if (!updated) throw new Error('Inventory item not found');
+
+        const InventoryHistory = require('../models/InventoryHistory').default;
+        await InventoryHistory.create({
+          itemId: id,
+          action: 'EDIT',
+          quantityChange: (input.currentStock !== undefined && updated)
+            ? (updated.currentStock - current.currentStock)
+            : 0,
+          previousStock: current.currentStock,
+          newStock: updated.currentStock,
+          note: 'Item edited',
+          user: null // Optionally, set user info if available
+        });
+
         return updated;
       } catch (error) {
         const err = error as Error;
         throw new Error(`Failed to update inventory item: ${err.message}`);
       }
     },
+    createInventoryItem: async (_: any, { input }: { input: any }) => {
+      try {
+        const InventoryItem = require('../models/InventoryItem').default;
+        const item = new InventoryItem(input);
+        await item.save();
+
+        const InventoryHistory = require('../models/InventoryHistory').default;
+        await InventoryHistory.create({
+          itemId: item.id,
+          action: 'CREATE',
+          quantityChange: item.currentStock,
+          previousStock: 0,
+          newStock: item.currentStock,
+          note: 'Item created',
+          user: null
+        });
+
+        return item;
+      } catch (error) {
+        const err = error as Error;
+        throw new Error(`Failed to create inventory item: ${err.message}`);
+      }
+    },
+    // Placeholder for reorder mutation and history recording (to be implemented in reorder step)
   },
   Order: {
     product: async (parent: { productId: string }) => {

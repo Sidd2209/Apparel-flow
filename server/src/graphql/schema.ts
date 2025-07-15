@@ -114,6 +114,18 @@ export const typeDefs = `
     lastUpdated: String!
   }
 
+  type InventoryHistory {
+    id: ID!
+    itemId: ID!
+    action: String!
+    quantityChange: Int!
+    previousStock: Int!
+    newStock: Int!
+    note: String
+    createdAt: String!
+    user: String
+  }
+
   # Sourcing Types
   type Vendor {
     id: ID!
@@ -330,6 +342,7 @@ export const typeDefs = `
     user(googleId: String!): User
     users: [User!]
     userByToken(idToken: String!): User
+    inventoryHistory(itemId: ID!): [InventoryHistory!]!
   }
 
   # Mutations
