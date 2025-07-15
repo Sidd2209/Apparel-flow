@@ -133,6 +133,7 @@ const InventoryManagement: React.FC = () => {
   const [formData, setFormData] = useState<FormDataType>(null);
   const [viewHistoryItem, setViewHistoryItem] = useState<InventoryItem | null>(null);
   const [reorderItem, setReorderItem] = useState<InventoryItem | null>(null);
+  const [reorderQuantity, setReorderQuantity] = useState('');
   const [reorderForm, setReorderForm] = useState({ quantity: '', supplier: '', note: '' });
 
   const { data, loading, error, refetch } = useQuery(GET_INVENTORY_ITEMS);
@@ -404,7 +405,7 @@ const InventoryManagement: React.FC = () => {
                         <Button variant="outline" size="sm" onClick={() => handleOpenDialog(item)}>Edit</Button>
                         <Button variant="outline" size="sm" onClick={() => deleteInventoryItem({ variables: { id: item.id } })}>Delete</Button>
                         <Button variant="outline" size="sm" onClick={() => setViewHistoryItem(item)}>View History</Button>
-                        <Button variant="outline" size="sm" onClick={() => setReorderItem(item)}>Reorder</Button>
+                        <Button variant="outline" size="sm" onClick={() => { setReorderItem(item); setReorderQuantity(''); }}>Reorder</Button>
                       </div>
                     </div>
                   </Card>
@@ -634,82 +635,44 @@ const InventoryManagement: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={!!reorderItem} onOpenChange={() => setReorderItem(null)}>
+      <Dialog open={!!reorderItem} onOpenChange={() => { setReorderItem(null); setReorderQuantity(''); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reorder {reorderItem?.name}</DialogTitle>
           </DialogHeader>
           <form
-            onSubmit={e => {
+            onSubmit={async e => {
               e.preventDefault();
-              if (!reorderItem) return;
-              if (!reorderForm.quantity || isNaN(Number(reorderForm.quantity)) || Number(reorderForm.quantity) <= 0) return;
-              createReorder({
+              if (!reorderItem || !reorderQuantity || isNaN(Number(reorderQuantity)) || Number(reorderQuantity) <= 0) return;
+              const { id, __typename, totalValue, lastUpdated, currentStock, ...rest } = reorderItem;
+              await createInventoryItem({
                 variables: {
                   input: {
-                    itemId: reorderItem.id,
-                    quantity: parseInt(reorderForm.quantity, 10),
-                    supplier: reorderForm.supplier,
-                    note: reorderForm.note,
-                    user: null
+                    ...rest,
+                    currentStock: parseInt(reorderQuantity, 10),
                   }
                 }
-              }).then(() => {
-                setReorderForm({ quantity: '', supplier: '', note: '' });
-                setReorderItem(null);
               });
+              setReorderItem(null);
+              setReorderQuantity('');
             }}
             className="space-y-3"
             style={{ minWidth: 280 }}
           >
-            <Label htmlFor="quantity">Quantity</Label>
+            <Label htmlFor="quantity">New Quantity</Label>
             <Input
               id="quantity"
               type="number"
-              placeholder="Quantity"
-              value={reorderForm.quantity}
-              onChange={e => setReorderForm(f => ({ ...f, quantity: e.target.value }))}
+              placeholder="Enter new quantity"
+              value={reorderQuantity}
+              onChange={e => setReorderQuantity(e.target.value)}
               min={1}
               required
             />
-            <Label htmlFor="supplier">Supplier</Label>
-            <Input
-              id="supplier"
-              type="text"
-              placeholder="Supplier"
-              value={reorderForm.supplier}
-              onChange={e => setReorderForm(f => ({ ...f, supplier: e.target.value }))}
-            />
-            <Label htmlFor="note">Note</Label>
-            <Input
-              id="note"
-              type="text"
-              placeholder="Note"
-              value={reorderForm.note}
-              onChange={e => setReorderForm(f => ({ ...f, note: e.target.value }))}
-            />
             <DialogFooter>
-              <Button type="submit" disabled={reorderLoading}>
-                {reorderLoading ? 'Reordering...' : 'Submit Reorder'}
-              </Button>
+              <Button type="submit">Add as New Item</Button>
             </DialogFooter>
-            {reorderError && <div style={{ color: 'red' }}>Error: {reorderError.message}</div>}
           </form>
-          <hr />
-          <div style={{ maxHeight: 120, overflowY: 'auto', fontSize: '0.95em' }}>
-            <b>Reorder History:</b>
-            {reorderHistoryLoading && <div>Loading...</div>}
-            {reorderData && reorderData.inventoryReorders.length === 0 && <div>No reorders yet.</div>}
-            {reorderData && reorderData.inventoryReorders.length > 0 && (
-              <ul style={{ paddingLeft: 16 }}>
-                {reorderData.inventoryReorders.map((r: any) => (
-                  <li key={r.id} style={{ marginBottom: 6, borderBottom: '1px solid #eee', paddingBottom: 2 }}>
-                    Qty: {r.quantity} | Supplier: {r.supplier || 'N/A'} | {r.status} | {r.note} | {new Date(r.createdAt).toLocaleString()}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </DialogContent>
       </Dialog>
     </div>
