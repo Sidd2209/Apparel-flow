@@ -720,8 +720,8 @@ const ProductionScheduler: React.FC = () => {
             <form onSubmit={async e => {
               e.preventDefault();
               if (!editPlan) return;
-              const { id, ...input } = editPlan;
-              await updateProductionPlan({ variables: { id: editPlan.id, input } });
+              const { id, __typename, progress, actualHours, ...input } = editPlan as any;
+              await updateProductionPlan({ variables: { id, input } });
               setEditPlan(null);
             }} className="space-y-2">
               <Input value={editPlan.productName} onChange={e => setEditPlan({ ...editPlan, productName: e.target.value })} placeholder="Product Name" />
