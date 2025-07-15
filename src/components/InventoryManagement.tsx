@@ -53,6 +53,49 @@ const DELETE_INVENTORY_ITEM = gql`
   }
 `;
 
+const GET_INVENTORY_HISTORY = gql`
+  query InventoryHistory($itemId: ID!) {
+    inventoryHistory(itemId: $itemId) {
+      id
+      action
+      quantityChange
+      previousStock
+      newStock
+      note
+      createdAt
+      user
+    }
+  }
+`;
+
+const CREATE_INVENTORY_REORDER = gql`
+  mutation CreateInventoryReorder($input: CreateInventoryReorderInput!) {
+    createInventoryReorder(input: $input) {
+      id
+      quantity
+      supplier
+      status
+      note
+      createdAt
+      user
+    }
+  }
+`;
+
+const GET_INVENTORY_REORDERS = gql`
+  query InventoryReorders($itemId: ID!) {
+    inventoryReorders(itemId: $itemId) {
+      id
+      quantity
+      supplier
+      status
+      note
+      createdAt
+      user
+    }
+  }
+`;
+
 interface InventoryItem {
   id: string;
   name: string;
@@ -89,6 +132,7 @@ const InventoryManagement: React.FC = () => {
   const [formData, setFormData] = useState<FormDataType>(null);
   const [viewHistoryItem, setViewHistoryItem] = useState<InventoryItem | null>(null);
   const [reorderItem, setReorderItem] = useState<InventoryItem | null>(null);
+  const [reorderForm, setReorderForm] = useState({ quantity: '', supplier: '', note: '' });
 
   const { data, loading, error, refetch } = useQuery(GET_INVENTORY_ITEMS);
   const [createInventoryItem, { loading: creating }] = useMutation(CREATE_INVENTORY_ITEM, {
@@ -104,6 +148,27 @@ const InventoryManagement: React.FC = () => {
   });
   const [deleteInventoryItem] = useMutation(DELETE_INVENTORY_ITEM, {
     refetchQueries: [{ query: GET_INVENTORY_ITEMS }],
+  });
+
+  const { data: historyData, loading: historyLoading, error: historyError } = useQuery(
+    GET_INVENTORY_HISTORY,
+    {
+      variables: { itemId: viewHistoryItem?.id },
+      skip: !viewHistoryItem,
+    }
+  );
+
+  const [createReorder, { loading: reorderLoading, error: reorderError }] = useMutation(CREATE_INVENTORY_REORDER, {
+    refetchQueries: reorderItem ? [{ query: GET_INVENTORY_REORDERS, variables: { itemId: reorderItem.id } }] : [],
+    onCompleted: () => {
+      setReorderForm({ quantity: '', supplier: '', note: '' });
+      // Optionally close dialog or show success
+    }
+  });
+
+  const { data: reorderData, loading: reorderHistoryLoading } = useQuery(GET_INVENTORY_REORDERS, {
+    variables: { itemId: reorderItem?.id },
+    skip: !reorderItem,
   });
 
   const handleOpenDialog = (item: InventoryItem | null) => {
@@ -547,8 +612,21 @@ const InventoryManagement: React.FC = () => {
             <DialogTitle>Stock History for {viewHistoryItem?.name}</DialogTitle>
           </DialogHeader>
           <div>
-            {/* TODO: Fetch and display history here */}
-            Coming soon!
+            {historyLoading && <div>Loading...</div>}
+            {historyError && <div>Error loading history.</div>}
+            {historyData && historyData.inventoryHistory.length === 0 && <div>No history found.</div>}
+            {historyData && historyData.inventoryHistory.length > 0 && (
+              <ul>
+                {historyData.inventoryHistory.map((entry: any) => (
+                  <li key={entry.id} style={{ marginBottom: 8 }}>
+                    <b>{entry.action}</b> | Change: {entry.quantityChange} | {entry.previousStock} → {entry.newStock}
+                    <br />
+                    {entry.note && <span>Note: {entry.note} | </span>}
+                    <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -558,8 +636,63 @@ const InventoryManagement: React.FC = () => {
             <DialogTitle>Reorder {reorderItem?.name}</DialogTitle>
           </DialogHeader>
           <div>
-            {/* TODO: Add reorder form here */}
-            Coming soon!
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                if (!reorderItem) return;
+                createReorder({
+                  variables: {
+                    input: {
+                      itemId: reorderItem.id,
+                      quantity: parseInt(reorderForm.quantity, 10),
+                      supplier: reorderForm.supplier,
+                      note: reorderForm.note,
+                      user: null // Optionally, set user info
+                    }
+                  }
+                });
+              }}
+              className="space-y-2"
+            >
+              <input
+                type="number"
+                placeholder="Quantity"
+                value={reorderForm.quantity}
+                onChange={e => setReorderForm(f => ({ ...f, quantity: e.target.value }))}
+                required
+              />
+              <input
+                type="text"
+                placeholder="Supplier"
+                value={reorderForm.supplier}
+                onChange={e => setReorderForm(f => ({ ...f, supplier: e.target.value }))}
+              />
+              <input
+                type="text"
+                placeholder="Note"
+                value={reorderForm.note}
+                onChange={e => setReorderForm(f => ({ ...f, note: e.target.value }))}
+              />
+              <Button type="submit" disabled={reorderLoading}>
+                {reorderLoading ? 'Reordering...' : 'Submit Reorder'}
+              </Button>
+            </form>
+            {reorderError && <div style={{ color: 'red' }}>Error: {reorderError.message}</div>}
+            <hr />
+            <div>
+              <b>Reorder History:</b>
+              {reorderHistoryLoading && <div>Loading...</div>}
+              {reorderData && reorderData.inventoryReorders.length === 0 && <div>No reorders yet.</div>}
+              {reorderData && reorderData.inventoryReorders.length > 0 && (
+                <ul>
+                  {reorderData.inventoryReorders.map((r: any) => (
+                    <li key={r.id}>
+                      Qty: {r.quantity} | Supplier: {r.supplier || 'N/A'} | {r.status} | {r.note} | {new Date(r.createdAt).toLocaleString()}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
