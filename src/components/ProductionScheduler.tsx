@@ -452,7 +452,7 @@ const ProductionScheduler: React.FC = () => {
                             <span className="text-sm">{plan.progress}%</span>
                           </div>
                           <Progress value={plan.progress} className="w-full" />
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
                             <Button variant="outline" size="sm" onClick={() => setViewPlan(plan)}>View Details</Button>
                             <Button variant="outline" size="sm" onClick={() => setEditPlan(plan)}>Update</Button>
                             <Button variant="destructive" size="sm" onClick={() => setDeletePlan(plan)}>Delete</Button>
