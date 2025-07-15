@@ -139,7 +139,7 @@ export const resolvers = {
     },
     inventoryItems: async () => {
       const InventoryItem = require('../models/InventoryItem').default;
-      const items = await InventoryItem.find({});
+      const items = await InventoryItem.find({ deleted: { $ne: true } });
       return items || [];
     },
     resources: async () => {
@@ -374,6 +374,21 @@ export const resolvers = {
       } catch (error) {
         const err = error as Error;
         throw new Error(`Failed to delete costing sheet: ${err.message}`);
+      }
+    },
+    deleteInventoryItem: async (_: any, { id }: { id: string }) => {
+      try {
+        const InventoryItem = require('../models/InventoryItem').default;
+        const deleted = await InventoryItem.findByIdAndUpdate(
+          id,
+          { deleted: true, lastUpdated: new Date().toISOString() },
+          { new: true }
+        );
+        if (!deleted) throw new Error('Inventory item not found');
+        return deleted;
+      } catch (error) {
+        const err = error as Error;
+        throw new Error(`Failed to soft delete inventory item: ${err.message}`);
       }
     },
   },
