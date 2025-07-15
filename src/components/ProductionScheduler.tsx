@@ -774,8 +774,9 @@ const ProductionScheduler: React.FC = () => {
             <form onSubmit={async e => {
               e.preventDefault();
               if (!editResource) return;
-              const { id, ...input } = editResource;
-              await updateResource({ variables: { id: editResource.id, input } });
+              // Only send fields allowed by ResourceInput
+              const { id, __typename, ...input } = editResource as any;
+              await updateResource({ variables: { id, input } });
               setEditResource(null);
             }} className="space-y-2">
               <Input value={editResource.name} onChange={e => setEditResource({ ...editResource, name: e.target.value })} placeholder="Name" />
