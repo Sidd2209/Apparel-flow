@@ -76,6 +76,48 @@ const CREATE_RESOURCE = gql`
   }
 `;
 
+// Add GraphQL mutations
+const UPDATE_PRODUCTION_PLAN = gql`
+  mutation UpdateProductionPlan($id: ID!, $input: ProductionPlanInput!) {
+    updateProductionPlan(id: $id, input: $input) {
+      id
+      productName
+      quantity
+      startDate
+      endDate
+      status
+      progress
+      assignedWorkers
+      estimatedHours
+      actualHours
+      priority
+    }
+  }
+`;
+const DELETE_PRODUCTION_PLAN = gql`
+  mutation DeleteProductionPlan($id: ID!) {
+    deleteProductionPlan(id: $id) { id }
+  }
+`;
+const UPDATE_RESOURCE = gql`
+  mutation UpdateResource($id: ID!, $input: ResourceInput!) {
+    updateResource(id: $id, input: $input) {
+      id
+      name
+      type
+      capacity
+      allocated
+      available
+      efficiency
+    }
+  }
+`;
+const DELETE_RESOURCE = gql`
+  mutation DeleteResource($id: ID!) {
+    deleteResource(id: $id) { id }
+  }
+`;
+
 interface ProductionPlan {
   id: string;
   productName: string;
@@ -125,6 +167,12 @@ const ProductionScheduler: React.FC = () => {
   const [createResource] = useMutation(CREATE_RESOURCE, {
     refetchQueries: [{ query: GET_RESOURCES }],
   });
+
+  // Add mutation hooks
+  const [updateProductionPlan] = useMutation(UPDATE_PRODUCTION_PLAN, { refetchQueries: [{ query: GET_PRODUCTION_PLANS }] });
+  const [deleteProductionPlan] = useMutation(DELETE_PRODUCTION_PLAN, { refetchQueries: [{ query: GET_PRODUCTION_PLANS }] });
+  const [updateResource] = useMutation(UPDATE_RESOURCE, { refetchQueries: [{ query: GET_RESOURCES }] });
+  const [deleteResourceMutation] = useMutation(DELETE_RESOURCE, { refetchQueries: [{ query: GET_RESOURCES }] });
 
   const productionPlans: ProductionPlan[] = plansData?.productionPlans || [];
   const resources: Resource[] = resourcesData?.resources || [];
@@ -669,7 +717,13 @@ const ProductionScheduler: React.FC = () => {
         <DialogContent>
           <DialogHeader><DialogTitle>Update Production Plan</DialogTitle></DialogHeader>
           {editPlan && (
-            <form onSubmit={e => { e.preventDefault(); /* TODO: call update mutation */ setEditPlan(null); }} className="space-y-2">
+            <form onSubmit={async e => {
+              e.preventDefault();
+              if (!editPlan) return;
+              const { id, ...input } = editPlan;
+              await updateProductionPlan({ variables: { id: editPlan.id, input } });
+              setEditPlan(null);
+            }} className="space-y-2">
               <Input value={editPlan.productName} onChange={e => setEditPlan({ ...editPlan, productName: e.target.value })} placeholder="Product Name" />
               <Input type="number" value={editPlan.quantity} onChange={e => setEditPlan({ ...editPlan, quantity: Number(e.target.value) })} placeholder="Quantity" />
               <Input type="date" value={editPlan.startDate} onChange={e => setEditPlan({ ...editPlan, startDate: e.target.value })} placeholder="Start Date" />
@@ -704,7 +758,11 @@ const ProductionScheduler: React.FC = () => {
           <DialogHeader><DialogTitle>Delete Production Plan</DialogTitle></DialogHeader>
           <div>Are you sure you want to delete this plan?</div>
           <DialogFooter>
-            <Button variant="destructive" onClick={() => { /* TODO: call delete mutation */ setDeletePlan(null); }}>Delete</Button>
+            <Button variant="destructive" onClick={async () => {
+              if (!deletePlan) return;
+              await deleteProductionPlan({ variables: { id: deletePlan.id } });
+              setDeletePlan(null);
+            }}>Delete</Button>
             <Button variant="outline" onClick={() => setDeletePlan(null)}>Cancel</Button>
           </DialogFooter>
         </DialogContent>
@@ -713,7 +771,13 @@ const ProductionScheduler: React.FC = () => {
         <DialogContent>
           <DialogHeader><DialogTitle>Update Resource</DialogTitle></DialogHeader>
           {editResource && (
-            <form onSubmit={e => { e.preventDefault(); /* TODO: call update mutation */ setEditResource(null); }} className="space-y-2">
+            <form onSubmit={async e => {
+              e.preventDefault();
+              if (!editResource) return;
+              const { id, ...input } = editResource;
+              await updateResource({ variables: { id: editResource.id, input } });
+              setEditResource(null);
+            }} className="space-y-2">
               <Input value={editResource.name} onChange={e => setEditResource({ ...editResource, name: e.target.value })} placeholder="Name" />
               <Input type="number" value={editResource.capacity} onChange={e => setEditResource({ ...editResource, capacity: Number(e.target.value) })} placeholder="Capacity" />
               <Input type="number" value={editResource.allocated} onChange={e => setEditResource({ ...editResource, allocated: Number(e.target.value) })} placeholder="Allocated" />
@@ -737,7 +801,11 @@ const ProductionScheduler: React.FC = () => {
           <DialogHeader><DialogTitle>Delete Resource</DialogTitle></DialogHeader>
           <div>Are you sure you want to delete this resource?</div>
           <DialogFooter>
-            <Button variant="destructive" onClick={() => { /* TODO: call delete mutation */ setDeleteResource(null); }}>Delete</Button>
+            <Button variant="destructive" onClick={async () => {
+              if (!deleteResource) return;
+              await deleteResourceMutation({ variables: { id: deleteResource.id } });
+              setDeleteResource(null);
+            }}>Delete</Button>
             <Button variant="outline" onClick={() => setDeleteResource(null)}>Cancel</Button>
           </DialogFooter>
         </DialogContent>
