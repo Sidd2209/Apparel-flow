@@ -474,6 +474,12 @@ export const resolvers = {
       const InventoryReorder = require('../models/InventoryReorder').default;
       const InventoryHistory = require('../models/InventoryHistory').default;
       const InventoryItem = require('../models/InventoryItem').default;
+      // Fetch current stock for history
+      const item = await InventoryItem.findById(input.itemId);
+      if (!item) {
+        throw new Error('Inventory item not found for reorder history');
+      }
+      const stock = item.currentStock;
       // Create reorder
       const reorder = new InventoryReorder({
         ...input,
@@ -481,9 +487,6 @@ export const resolvers = {
         createdAt: new Date(),
       });
       await reorder.save();
-      // Fetch current stock for history
-      const item = await InventoryItem.findById(input.itemId);
-      const stock = item ? item.currentStock : 0;
       // Record history
       await InventoryHistory.create({
         itemId: input.itemId,
