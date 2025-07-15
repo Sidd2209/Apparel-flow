@@ -87,6 +87,8 @@ const InventoryManagement: React.FC = () => {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<FormDataType>(null);
+  const [viewHistoryItem, setViewHistoryItem] = useState<InventoryItem | null>(null);
+  const [reorderItem, setReorderItem] = useState<InventoryItem | null>(null);
 
   const { data, loading, error, refetch } = useQuery(GET_INVENTORY_ITEMS);
   const [createInventoryItem, { loading: creating }] = useMutation(CREATE_INVENTORY_ITEM, {
@@ -332,8 +334,8 @@ const InventoryManagement: React.FC = () => {
                       <div className="flex flex-col gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleOpenDialog(item)}>Edit</Button>
                         <Button variant="outline" size="sm" onClick={() => deleteInventoryItem({ variables: { id: item.id } })}>Delete</Button>
-                        <Button variant="outline" size="sm">View History</Button>
-                        <Button variant="outline" size="sm">Reorder</Button>
+                        <Button variant="outline" size="sm" onClick={() => setViewHistoryItem(item)}>View History</Button>
+                        <Button variant="outline" size="sm" onClick={() => setReorderItem(item)}>Reorder</Button>
                       </div>
                     </div>
                   </Card>
@@ -537,6 +539,28 @@ const InventoryManagement: React.FC = () => {
               {creating ? 'Adding...' : (isEditing ? 'Update Item' : 'Add Item')}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!viewHistoryItem} onOpenChange={() => setViewHistoryItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Stock History for {viewHistoryItem?.name}</DialogTitle>
+          </DialogHeader>
+          <div>
+            {/* TODO: Fetch and display history here */}
+            Coming soon!
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!reorderItem} onOpenChange={() => setReorderItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reorder {reorderItem?.name}</DialogTitle>
+          </DialogHeader>
+          <div>
+            {/* TODO: Add reorder form here */}
+            Coming soon!
+          </div>
         </DialogContent>
       </Dialog>
     </div>
