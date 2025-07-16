@@ -327,7 +327,7 @@ const InventoryManagement: React.FC = () => {
               <Button onClick={() => handleOpenDialog(null)}><Plus className="h-4 w-4 mr-2" />Add Item</Button>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="flex flex-col md:flex-row gap-4 mb-2 justify-end items-end">
                 <div className="flex-1">
                   <Label htmlFor="search">Search Inventory</Label>
                   <div className="relative">
@@ -346,7 +346,7 @@ const InventoryManagement: React.FC = () => {
                   <select 
                     value={categoryFilter} 
                     onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="w-48 p-2 border rounded-md"
+                    className="w-55 p-1 h-10 border rounded-md"
                   >
                     <option value="all">All Categories</option>
                     <option value="RAW_MATERIALS">Raw Materials</option>
