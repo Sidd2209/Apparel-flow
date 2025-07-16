@@ -216,8 +216,8 @@ const OrderManagement: React.FC = () => {
   return (
     <>
       <div className="grid grid-cols-4 md:grid-cols-10 gap-8 items-end mb-6">
-        <h1 className="text-2xl font-bold col-span-2 md:col-span-6">Order Management</h1>
-        <div className="col-span-4 md:col-span-2 justify-self-end">
+        <h1 className="text-2xl font-bold col-span-2 md:col-span-6 justify-end">Order Management</h1>
+        <div className="col-span-4 md:col-span-2 justify-self-end justify-self-end">
           <Button
             onClick={() => setIsModalOpen(true)}
             className="h-8 px-6 text-lg">
