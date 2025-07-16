@@ -621,16 +621,37 @@ const InventoryManagement: React.FC = () => {
             {historyError && <div>Error loading history.</div>}
             {historyData && historyData.inventoryHistory.length === 0 && <div>No history found.</div>}
             {historyData && historyData.inventoryHistory.length > 0 && (
-              <ul style={{ paddingLeft: 16 }}>
-                {historyData.inventoryHistory.map((entry: any) => (
-                  <li key={entry.id} style={{ marginBottom: 8, borderBottom: '1px solid #eee', paddingBottom: 4 }}>
-                    <b>{entry.action}</b> | Change: {entry.quantityChange} | {entry.previousStock} → {entry.newStock}
-                    <br />
-                    {entry.note && <span>Note: {entry.note} | </span>}
-                    <span>{new Date(entry.createdAt).toLocaleString()}</span>
-                  </li>
-                ))}
-              </ul>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95em' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #ddd' }}>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>Action</th>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>Change</th>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>Stock</th>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>Note</th>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyData.inventoryHistory.map((entry: any) => {
+                    let dateString = '';
+                    try {
+                      const d = new Date(entry.createdAt);
+                      dateString = isNaN(d.getTime()) ? 'N/A' : d.toLocaleString();
+                    } catch {
+                      dateString = 'N/A';
+                    }
+                    return (
+                      <tr key={entry.id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '4px' }}><b>{entry.action}</b></td>
+                        <td style={{ padding: '4px' }}>{entry.quantityChange}</td>
+                        <td style={{ padding: '4px' }}>{entry.previousStock} → {entry.newStock}</td>
+                        <td style={{ padding: '4px' }}>{entry.note || '-'}</td>
+                        <td style={{ padding: '4px' }}>{dateString}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
           </div>
         </DialogContent>
