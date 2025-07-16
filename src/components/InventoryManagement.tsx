@@ -234,12 +234,7 @@ const InventoryManagement: React.FC = () => {
       if (!parsedInput.supplier) {
         delete (parsedInput as Partial<typeof parsedInput>).supplier;
       }
-      const payload = {
-        ...parsedInput,
-        totalValue: (parsedInput.currentStock || 0) * (parsedInput.unitCost || 0),
-        lastUpdated: new Date().toISOString(),
-      };
-      await createInventoryItem({ variables: { input: payload } });
+      await createInventoryItem({ variables: { input: parsedInput } });
     }
   };
 
