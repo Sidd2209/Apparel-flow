@@ -29,28 +29,18 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/*"
-              element={
-                <AuthGate>
-                  <Routes>
-                    <Route path="/" element={<Index />}>
-                      <Route index element={<Dashboard />} />
-                      <Route path="product-dev" element={<ProductDevelopment />} />
-                      <Route path="orders" element={<OrderManagement />} />
-                      <Route path="costing" element={<CostingCalculator />} />
-                      {/* <Route path="sourcing" element={<SourcingManagement />} /> */}
-                      <Route path="production" element={<ProductionScheduler />} />
-                      {/* <Route path="quality" element={<QualityControl />} /> */}
-                      {/* <Route path="shipping" element={<ShippingModule />} /> */}
-                      <Route path="inventory" element={<InventoryManagement />} />
-                    </Route>
-                    <Route path="/profile-setup" element={<ProfileSetup />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </AuthGate>
-              }
-            />
+            <Route element={<AuthGate />}>
+              <Route path="/" element={<Index />}>
+                <Route index element={<OrderManagement />} />
+                <Route path="product-dev" element={<ProductDevelopment />} />
+                <Route path="orders" element={<OrderManagement />} />
+                <Route path="costing" element={<CostingCalculator />} />
+                <Route path="production" element={<ProductionScheduler />} />
+                <Route path="inventory" element={<InventoryManagement />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+              <Route path="/profile-setup" element={<ProfileSetup />} />
+            </Route>
           </Routes>
         </AuthProvider>
       </BrowserRouter>

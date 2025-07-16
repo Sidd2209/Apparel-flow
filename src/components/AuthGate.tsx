@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
-export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthGate: React.FC = () => {
   const { user, authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,9 +31,10 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
 
     // Case 3: User is logged in with a complete profile
-    if (isPublicRoute) {
-      navigate(user.preferredHomepage || '/');
-    }
+    const validHome = ['/orders', '/product-dev', '/costing', '/production', '/inventory', '/'].includes(user.preferredHomepage)
+      ? user.preferredHomepage
+      : '/';
+    navigate(validHome);
 
   }, [user, authLoading, location.pathname, navigate]);
 
@@ -43,5 +44,5 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }
 
   // If logic passes, render the requested child component
-  return <>{children}</>;
+  return <Outlet />;
 };

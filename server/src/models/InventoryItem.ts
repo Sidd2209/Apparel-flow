@@ -15,7 +15,6 @@ export interface IInventoryItem extends Document {
   totalValue: number;
   lastUpdated: string;
 }
-
 const InventoryItemSchema = new Schema<IInventoryItem>(
   {
     name: { type: String, required: true },

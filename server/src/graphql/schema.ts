@@ -125,7 +125,6 @@ export const typeDefs = `
     createdAt: String!
     user: String
   }
-
   type InventoryReorder {
     id: ID!
     itemId: ID!

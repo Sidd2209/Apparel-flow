@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarProvider, useSidebar } from './ui/sidebar';
+import { Link } from 'react-router-dom';
 
 // --- Context and Providers ---
 const departmentConfig: { [key: string]: { name: string; color: string; emoji: string } } = {
@@ -55,9 +56,9 @@ const DashboardHeader: React.FC = () => {
           <Button variant="ghost" size="icon" onClick={toggleSidebar}>
             <Menu className="h-6 w-6" />
           </Button>
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <Link to="/" className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent hover:underline focus:outline-none">
             ApparelOS
-          </h1>
+          </Link>
           {selectedDepartment && (
             <div className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium text-white ${selectedDepartment.color}`}>
               {selectedDepartment.emoji}
@@ -65,11 +66,6 @@ const DashboardHeader: React.FC = () => {
             </div>
           )}
         </div>
-
-        {/* <div className="flex-1 mx-8">
-          <Input type="search" placeholder="Search..." className="w-full max-w-md mx-auto" />
-        </div> */}
-
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon"><Bell className="h-5 w-5" /></Button>
           <DropdownMenu>
