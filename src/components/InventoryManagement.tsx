@@ -224,16 +224,21 @@ const InventoryManagement: React.FC = () => {
     } else {
       // This is a create
       const { id, __typename, totalValue, lastUpdated, ...input } = formData as any; // Cast to remove properties
-      const payload = {
+      const parsedInput = {
         ...input,
         currentStock: parseInt(String(input.currentStock), 10) || 0,
         minStock: parseInt(String(input.minStock), 10) || 0,
         maxStock: parseInt(String(input.maxStock), 10) || 0,
         unitCost: parseFloat(String(input.unitCost)) || 0,
       };
-      if (!payload.supplier) {
-        delete (payload as Partial<typeof payload>).supplier;
+      if (!parsedInput.supplier) {
+        delete (parsedInput as Partial<typeof parsedInput>).supplier;
       }
+      const payload = {
+        ...parsedInput,
+        totalValue: (parsedInput.currentStock || 0) * (parsedInput.unitCost || 0),
+        lastUpdated: new Date().toISOString(),
+      };
       await createInventoryItem({ variables: { input: payload } });
     }
   };
