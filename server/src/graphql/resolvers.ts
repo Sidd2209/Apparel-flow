@@ -447,10 +447,27 @@ export const resolvers = {
         throw new Error(`Failed to update inventory item: ${err.message}`);
       }
     },
+    // ... existing code ...
     createInventoryItem: async (_: any, { input }: { input: any }) => {
       try {
+        // Always create a new object with all required fields
+        const itemData: any = {
+          name: input.name,
+          category: input.category,
+          currentStock: input.currentStock,
+          minStock: input.minStock,
+          maxStock: input.maxStock,
+          unit: input.unit,
+          unitCost: input.unitCost,
+          location: input.location,
+          supplier: input.supplier,
+          deleted: false,
+          totalValue: (input.currentStock || 0) * (input.unitCost || 0),
+          lastUpdated: new Date().toISOString(),
+        };
+
         const InventoryItem = require('../models/InventoryItem').default;
-        const item = new InventoryItem(input);
+        const item = new InventoryItem(itemData);
         await item.save();
 
         const InventoryHistory = require('../models/InventoryHistory').default;
@@ -470,6 +487,7 @@ export const resolvers = {
         throw new Error(`Failed to create inventory item: ${err.message}`);
       }
     },
+// ... existing code ...
     createInventoryReorder: async (_: any, { input }: { input: any }) => {
       const InventoryReorder = require('../models/InventoryReorder').default;
       const InventoryHistory = require('../models/InventoryHistory').default;
