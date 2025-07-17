@@ -11,10 +11,10 @@ export interface IInventoryItem extends Document {
   unitCost: number;
   location: string;
   supplier?: string;
+  deleted: boolean;
   totalValue: number;
   lastUpdated: string;
 }
-
 const InventoryItemSchema = new Schema<IInventoryItem>(
   {
     name: { type: String, required: true },
@@ -30,6 +30,7 @@ const InventoryItemSchema = new Schema<IInventoryItem>(
     unitCost: { type: Number, required: true },
     location: { type: String, required: true },
     supplier: { type: String },
+    deleted: { type: Boolean, default: false },
     // These fields are calculated by the resolver, but stored in the DB
     totalValue: { type: Number, required: true },
     lastUpdated: { type: String, required: true },

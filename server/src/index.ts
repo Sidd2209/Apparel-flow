@@ -16,6 +16,8 @@ if (!MONGO_URI) {
 }
 
 const app = express();
+app.use(cors());
+app.use(express.json());
 const server = new ApolloServer({
   typeDefs,
   resolvers,
@@ -28,26 +30,32 @@ export const startServer = async () => {
 
     await server.start();
 
-    // Apply all middleware, including Apollo Server, to the /graphql endpoint
+    // Handle preflight requests for /graphql
+    app.options('/graphql', cors({
+      origin: [
+        'http://localhost:5173',
+        'https://apparel-flow-frontend.onrender.com',
+        'https://apparel-flow-10.onrender.com'
+      ],
+      credentials: true
+    }));
+
     app.use(
       '/graphql',
-      // 1. CORS must be first to handle cross-origin requests.
       cors({
         origin: [
           'http://localhost:5173',
-          'https://apparel-flow-frontend.onrender.com' // Allow deployed frontend
+          'https://apparel-flow-frontend.onrender.com',
+          'https://apparel-flow-10.onrender.com'
         ],
         credentials: true
       }),
-      // 2. Body parser must be second to parse the request body.
       bodyParser.json(),
-      // 3. Security headers.
       (req, res, next) => {
-          res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-          res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
-          next();
+        res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+        res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
+        next();
       },
-      // 4. Apollo Server middleware is last.
       expressMiddleware(server, {
         context: async ({ req }) => ({ token: req.headers.authorization }),
       }),

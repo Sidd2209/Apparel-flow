@@ -215,12 +215,12 @@ const OrderManagement: React.FC = () => {
 
   return (
     <>
-      <div className="grid grid-cols-4 md:grid-cols-10 gap-8 items-center">
-        <h1 className="text-2xl font-bold col-span-2 md:col-span-6">Order Management</h1>
-        <div className="col-span-4 md:col-span-2 justify-self-end">
+      <div className="grid grid-cols-4 md:grid-cols-10 gap-8 items-end mb-6">
+        <h1 className="text-2xl font-bold col-span-2 md:col-span-6 justify-end">Order Management</h1>
+        <div className="col-span-4 md:col-span-2 justify-self-end justify-self-end">
           <Button
             onClick={() => setIsModalOpen(true)}
-            className="h-12 px-6 text-lg">
+            className="h-8 px-6 text-lg">
             <PlusCircle className="mr-2 h-8 w-5" />
             Add New Order
           </Button>
@@ -237,7 +237,10 @@ const OrderManagement: React.FC = () => {
                 <TableHead>Order Number</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Quantity</TableHead>
+<<<<<<< HEAD
                 <TableHead>Priority</TableHead>
+=======
+>>>>>>> origin/new-feature-branch
                 <TableHead>Date</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -251,13 +254,17 @@ const OrderManagement: React.FC = () => {
                       <div>{order.product.name}</div>
                     </TableCell>
                     <TableCell>{order.quantity}</TableCell>
+                    <TableCell>{order.validDate ? new Date(order.validDate).toLocaleDateString() : ''}</TableCell>
                     <TableCell>
+<<<<<<< HEAD
                       <Badge variant={getPriorityVariant(order.priority) as "default" | "secondary" | "destructive" | "outline"} className="text-xs">
                         {order.priority}
                       </Badge>
                     </TableCell>
                     <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>
+=======
+>>>>>>> origin/new-feature-branch
                       <Button
                         variant="destructive"
                         size="sm"
@@ -271,7 +278,7 @@ const OrderManagement: React.FC = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">No orders found.</TableCell>
+                  <TableCell colSpan={5} className="text-center">No orders found.</TableCell>
                 </TableRow>
               )}
             </TableBody>

@@ -37,15 +37,7 @@ const Dashboard: React.FC = () => {
             Welcome back, {user.name}! Here's what's happening today.
           </p>
         </div>
-        
-        <div className="flex items-center space-x-2">
-          <Bell className="h-5 w-5 text-gray-500" />
-          {unreadCount > 0 && (
-            <Badge variant="destructive" className="text-xs">
-              {unreadCount}
-            </Badge>
-          )}
-        </div>
+        {/* Removed notification icon and badge */}
       </div>
 
       {/* KPI Cards */}
@@ -77,53 +69,7 @@ const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
         </div>
-
-        {/* Notifications */}
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Notifications
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {notifications.length > 0 ? (
-                notifications.map(notification => (
-                  <div
-                    key={notification.id}
-                    className={`p-3 rounded-lg border ${
-                      !notification.isRead ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="font-medium text-sm">{notification.title}</h4>
-                      <Badge
-                        variant={
-                          notification.type === 'error' ? 'destructive' :
-                          notification.type === 'warning' ? 'default' :
-                          notification.type === 'success' ? 'default' : 'secondary'
-                        }
-                        className="text-xs"
-                      >
-                        {notification.type}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-gray-600">{notification.message}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(notification.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-gray-500">
-                  <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No new notifications</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        {/* Removed Notifications section */}
       </div>
 
       {/* Product Development Section (for relevant departments) */}

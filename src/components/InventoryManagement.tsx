@@ -53,6 +53,49 @@ const DELETE_INVENTORY_ITEM = gql`
   }
 `;
 
+const GET_INVENTORY_HISTORY = gql`
+  query InventoryHistory($itemId: ID!) {
+    inventoryHistory(itemId: $itemId) {
+      id
+      action
+      quantityChange
+      previousStock
+      newStock
+      note
+      createdAt
+      user
+    }
+  }
+`;
+
+const CREATE_INVENTORY_REORDER = gql`
+  mutation CreateInventoryReorder($input: CreateInventoryReorderInput!) {
+    createInventoryReorder(input: $input) {
+      id
+      quantity
+      supplier
+      status
+      note
+      createdAt
+      user
+    }
+  }
+`;
+
+const GET_INVENTORY_REORDERS = gql`
+  query InventoryReorders($itemId: ID!) {
+    inventoryReorders(itemId: $itemId) {
+      id
+      quantity
+      supplier
+      status
+      note
+      createdAt
+      user
+    }
+  }
+`;
+
 interface InventoryItem {
   id: string;
   name: string;
@@ -67,6 +110,7 @@ interface InventoryItem {
   lastUpdated: string;
   supplier?: string;
   __typename?: string;
+  deleted?: boolean; // Added for frontend filtering
 }
 
 type FormDataType = Omit<InventoryItem, 'id' | 'totalValue' | 'lastUpdated'> | InventoryItem | null;
@@ -87,6 +131,10 @@ const InventoryManagement: React.FC = () => {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<FormDataType>(null);
+  const [viewHistoryItem, setViewHistoryItem] = useState<InventoryItem | null>(null);
+  const [reorderItem, setReorderItem] = useState<InventoryItem | null>(null);
+  const [reorderQuantity, setReorderQuantity] = useState('');
+  const [reorderForm, setReorderForm] = useState({ quantity: '', supplier: '', note: '' });
 
   const { data, loading, error, refetch } = useQuery(GET_INVENTORY_ITEMS);
   const [createInventoryItem, { loading: creating }] = useMutation(CREATE_INVENTORY_ITEM, {
@@ -102,6 +150,30 @@ const InventoryManagement: React.FC = () => {
   });
   const [deleteInventoryItem] = useMutation(DELETE_INVENTORY_ITEM, {
     refetchQueries: [{ query: GET_INVENTORY_ITEMS }],
+    onCompleted: () => {
+      refetch(); // Force refetch after deletion
+    },
+  });
+
+  const { data: historyData, loading: historyLoading, error: historyError } = useQuery(
+    GET_INVENTORY_HISTORY,
+    {
+      variables: { itemId: viewHistoryItem?.id },
+      skip: !viewHistoryItem,
+    }
+  );
+
+  const [createReorder, { loading: reorderLoading, error: reorderError }] = useMutation(CREATE_INVENTORY_REORDER, {
+    refetchQueries: reorderItem ? [{ query: GET_INVENTORY_REORDERS, variables: { itemId: reorderItem.id } }] : [],
+    onCompleted: () => {
+      setReorderForm({ quantity: '', supplier: '', note: '' });
+      // Optionally close dialog or show success
+    }
+  });
+
+  const { data: reorderData, loading: reorderHistoryLoading } = useQuery(GET_INVENTORY_REORDERS, {
+    variables: { itemId: reorderItem?.id },
+    skip: !reorderItem,
   });
 
   const handleOpenDialog = (item: InventoryItem | null) => {
@@ -152,21 +224,21 @@ const InventoryManagement: React.FC = () => {
     } else {
       // This is a create
       const { id, __typename, totalValue, lastUpdated, ...input } = formData as any; // Cast to remove properties
-      const payload = {
+      const parsedInput = {
         ...input,
         currentStock: parseInt(String(input.currentStock), 10) || 0,
         minStock: parseInt(String(input.minStock), 10) || 0,
         maxStock: parseInt(String(input.maxStock), 10) || 0,
         unitCost: parseFloat(String(input.unitCost)) || 0,
       };
-      if (!payload.supplier) {
-        delete (payload as Partial<typeof payload>).supplier;
+      if (!parsedInput.supplier) {
+        delete (parsedInput as Partial<typeof parsedInput>).supplier;
       }
-      await createInventoryItem({ variables: { input: payload } });
+      await createInventoryItem({ variables: { input: parsedInput } });
     }
   };
 
-  const inventory: InventoryItem[] = data?.inventoryItems || [];
+  const inventory: InventoryItem[] = (data?.inventoryItems || []).filter(item => !('deleted' in item) || !item.deleted);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
@@ -255,7 +327,7 @@ const InventoryManagement: React.FC = () => {
               <Button onClick={() => handleOpenDialog(null)}><Plus className="h-4 w-4 mr-2" />Add Item</Button>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="flex flex-col md:flex-row gap-4 mb-2 justify-end items-end">
                 <div className="flex-1">
                   <Label htmlFor="search">Search Inventory</Label>
                   <div className="relative">
@@ -274,7 +346,7 @@ const InventoryManagement: React.FC = () => {
                   <select 
                     value={categoryFilter} 
                     onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="w-48 p-2 border rounded-md"
+                    className="w-55 p-1 h-10 border rounded-md"
                   >
                     <option value="all">All Categories</option>
                     <option value="RAW_MATERIALS">Raw Materials</option>
@@ -332,8 +404,8 @@ const InventoryManagement: React.FC = () => {
                       <div className="flex flex-col gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleOpenDialog(item)}>Edit</Button>
                         <Button variant="outline" size="sm" onClick={() => deleteInventoryItem({ variables: { id: item.id } })}>Delete</Button>
-                        <Button variant="outline" size="sm">View History</Button>
-                        <Button variant="outline" size="sm">Reorder</Button>
+                        <Button variant="outline" size="sm" onClick={() => setViewHistoryItem(item)}>View History</Button>
+                        <Button variant="outline" size="sm" onClick={() => { setReorderItem(item); setReorderQuantity(''); }}>Reorder</Button>
                       </div>
                     </div>
                   </Card>
@@ -537,6 +609,91 @@ const InventoryManagement: React.FC = () => {
               {creating ? 'Adding...' : (isEditing ? 'Update Item' : 'Add Item')}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!viewHistoryItem} onOpenChange={() => setViewHistoryItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Stock History for {viewHistoryItem?.name}</DialogTitle>
+          </DialogHeader>
+          <div style={{ maxHeight: '300px', overflowY: 'auto', fontSize: '0.95em' }}>
+            {historyLoading && <div>Loading...</div>}
+            {historyError && <div>Error loading history.</div>}
+            {historyData && historyData.inventoryHistory.length === 0 && <div>No history found.</div>}
+            {historyData && historyData.inventoryHistory.length > 0 && (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95em' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #ddd' }}>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>Action</th>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>Change</th>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>Stock</th>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>Note</th>
+                    <th style={{ textAlign: 'left', padding: '4px' }}>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyData.inventoryHistory.map((entry: any) => {
+                    let dateString = '';
+                    try {
+                      const d = new Date(entry.createdAt);
+                      dateString = isNaN(d.getTime()) ? 'N/A' : d.toLocaleString();
+                    } catch {
+                      dateString = 'N/A';
+                    }
+                    return (
+                      <tr key={entry.id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '4px' }}><b>{entry.action}</b></td>
+                        <td style={{ padding: '4px' }}>{entry.quantityChange}</td>
+                        <td style={{ padding: '4px' }}>{entry.previousStock} → {entry.newStock}</td>
+                        <td style={{ padding: '4px' }}>{entry.note || '-'}</td>
+                        <td style={{ padding: '4px' }}>{dateString}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!reorderItem} onOpenChange={() => { setReorderItem(null); setReorderQuantity(''); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reorder {reorderItem?.name}</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={async e => {
+              e.preventDefault();
+              if (!reorderItem || !reorderQuantity || isNaN(Number(reorderQuantity)) || Number(reorderQuantity) <= 0) return;
+              const { id, __typename, totalValue, lastUpdated, currentStock, ...rest } = reorderItem;
+              await createInventoryItem({
+                variables: {
+                  input: {
+                    ...rest,
+                    currentStock: parseInt(reorderQuantity, 10),
+                  }
+                }
+              });
+              setReorderItem(null);
+              setReorderQuantity('');
+            }}
+            className="space-y-3"
+            style={{ minWidth: 280 }}
+          >
+            <Label htmlFor="quantity">New Quantity</Label>
+            <Input
+              id="quantity"
+              type="number"
+              placeholder="Enter new quantity"
+              value={reorderQuantity}
+              onChange={e => setReorderQuantity(e.target.value)}
+              min={1}
+              required
+            />
+            <DialogFooter>
+              <Button type="submit">Add as New Item</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

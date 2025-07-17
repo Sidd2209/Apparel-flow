@@ -31,7 +31,14 @@ const LoginPage: React.FC = () => {
         if (!data.userByToken.department) {
           navigate('/profile-setup');
         } else {
+<<<<<<< HEAD
           navigate(data.userByToken.preferredHomepage || '/');
+=======
+          const validHome = ['/orders', '/product-dev', '/costing', '/production', '/inventory', '/'].includes(data.userByToken.preferredHomepage)
+            ? data.userByToken.preferredHomepage
+            : '/';
+          navigate(validHome);
+>>>>>>> origin/new-feature-branch
         }
       }
     },

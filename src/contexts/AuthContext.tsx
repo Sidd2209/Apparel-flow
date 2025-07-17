@@ -9,6 +9,7 @@ interface AuthContextType {
   updateUserProfile: (updatedData: Partial<User>) => void;
   logout: () => void;
   switchDepartment: (department: Department) => void;
+  login: (email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -69,8 +70,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Placeholder login function for email/password
+  const login = async (email: string, password: string) => {
+    // You can implement real authentication here later
+    throw new Error('Email/password login not implemented. Use Google login.');
+  };
+
   return (
-    <AuthContext.Provider value={{ user, authLoading, googleLogin, updateUserProfile, logout, switchDepartment }}>
+    <AuthContext.Provider value={{ user, authLoading, googleLogin, updateUserProfile, logout, switchDepartment, login }}>
       {children}
     </AuthContext.Provider>
   );

@@ -126,6 +126,20 @@ const CostingCalculator: React.FC = () => {
     console.log('DEBUG: data', data);
   }, [localSheetData, data]);
 
+  // Ensure activeSheetId is always valid after data changes (e.g., after delete)
+  useEffect(() => {
+    if (!data?.costingSheets) return;
+    if (activeSheetId && !data.costingSheets.find(s => s.id === activeSheetId)) {
+      // If the current activeSheetId is no longer present, select the first available or null
+      if (data.costingSheets.length > 0) {
+        setActiveSheetId(data.costingSheets[0].id);
+      } else {
+        setActiveSheetId(null);
+        setLocalSheetData(null);
+      }
+    }
+  }, [data?.costingSheets]);
+
   const handleSave = async () => {
     if (!localSheetData || !localSheetData.id) return;
 
@@ -145,7 +159,15 @@ const CostingCalculator: React.FC = () => {
       },
     };
 
-    const res = await saveCostingSheet({ variables: { id: localSheetData.id, input } });
+    // Remove any fields not in SaveCostingSheetInput
+    // (name, costBreakdown, taxConfig, profitMargin, selectedCurrency)
+    const allowed = ['name', 'costBreakdown', 'taxConfig', 'profitMargin', 'selectedCurrency'];
+    const cleanInput: any = {};
+    for (const key of allowed) {
+      if (input[key] !== undefined) cleanInput[key] = input[key];
+    }
+
+    const res = await saveCostingSheet({ variables: { id: localSheetData.id, input: cleanInput } });
     if (res && res.data && res.data.saveCostingSheet) {
       setActiveSheetId(res.data.saveCostingSheet.id);
       setLocalSheetData(res.data.saveCostingSheet);
@@ -231,6 +253,7 @@ const CostingCalculator: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this sheet?')) {
       await deleteCostingSheet({
         variables: { id },
+<<<<<<< HEAD
         onCompleted: () => {
           // Find the next available sheet (if any) after refetch
           if (data?.costingSheets) {
@@ -246,6 +269,11 @@ const CostingCalculator: React.FC = () => {
             setActiveSheetId(null);
             setLocalSheetData(null);
           }
+=======
+        onCompleted: async () => {
+          // Let refetch handle updating the data, then useEffect will handle state
+          await refetch();
+>>>>>>> origin/new-feature-branch
         }
       });
     }

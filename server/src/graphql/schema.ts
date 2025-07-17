@@ -114,6 +114,28 @@ export const typeDefs = `
     lastUpdated: String!
   }
 
+  type InventoryHistory {
+    id: ID!
+    itemId: ID!
+    action: String!
+    quantityChange: Int!
+    previousStock: Int!
+    newStock: Int!
+    note: String
+    createdAt: String!
+    user: String
+  }
+  type InventoryReorder {
+    id: ID!
+    itemId: ID!
+    quantity: Int!
+    supplier: String
+    status: String!
+    note: String
+    createdAt: String!
+    user: String
+  }
+
   # Sourcing Types
   type Vendor {
     id: ID!
@@ -311,6 +333,14 @@ export const typeDefs = `
     department: String!
   }
 
+  input CreateInventoryReorderInput {
+    itemId: ID!
+    quantity: Int!
+    supplier: String
+    note: String
+    user: String
+  }
+
   # Queries
   type Query {
     products: [Product!]!
@@ -330,6 +360,8 @@ export const typeDefs = `
     user(googleId: String!): User
     users: [User!]
     userByToken(idToken: String!): User
+    inventoryHistory(itemId: ID!): [InventoryHistory!]!
+    inventoryReorders(itemId: ID!): [InventoryReorder!]!
   }
 
   # Mutations
@@ -341,12 +373,19 @@ export const typeDefs = `
     createVendor(input: VendorInput!): Vendor!
     createPurchaseOrder(input: PurchaseOrderInput!): PurchaseOrder!
     createProductionPlan(input: ProductionPlanInput!): ProductionPlan!
+    updateProductionPlan(id: ID!, input: ProductionPlanInput!): ProductionPlan!
+    deleteProductionPlan(id: ID!): ProductionPlan!
     createResource(input: ResourceInput!): Resource!
+    updateResource(id: ID!, input: ResourceInput!): Resource!
+    deleteResource(id: ID!): Resource!
     createInventoryItem(input: CreateInventoryItemInput!): InventoryItem!
     updateInventoryItem(id: ID!, input: UpdateInventoryItemInput!): InventoryItem
     deleteInventoryItem(id: ID!): InventoryItem
-    saveCostingSheet(id: ID, input: SaveCostingSheetInput!): CostingSheet!
-    deleteCostingSheet(id: ID!): CostingSheet
+    saveCostingSheet(id: ID!, input: SaveCostingSheetInput!): CostingSheet!
+    deleteCostingSheet(id: ID!): CostingSheet!
     updateUserProfile(input: UpdateUserInput!): User
+    updateProduct(id: ID!, input: ProductInput!): Product!
+    deleteProduct(id: ID!): Product!
+    createInventoryReorder(input: CreateInventoryReorderInput!): InventoryReorder!
   }
 `;
