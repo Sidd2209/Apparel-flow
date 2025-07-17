@@ -1,33 +1,40 @@
 import { Router, Request, Response } from 'express';
-import { orders } from '../data';
-import { Order } from '../types';
+import { getAllOrders, IOrder } from '../models/Order';
+import db from '../db';
 
 const router = Router();
 
 // GET /api/v1/orders - Retrieve all orders
 router.get('/', (req: Request, res: Response) => {
-  // In a real app, you'd handle filtering, sorting, and pagination here
+  const orders = getAllOrders();
   res.json(orders);
 });
 
 // POST /api/v1/orders - Create a new order
 router.post('/', (req: Request, res: Response) => {
-  const newOrderData = req.body;
-
-  const newOrder: Order = {
-    id: `ord_${new Date().getTime()}`, // Simple unique ID generation
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    ...newOrderData,
-  };
-
-  orders.push(newOrder);
+  const {
+    orderNumber,
+    productId,
+    quantity,
+    status,
+    priority,
+    totalValue,
+    customerName,
+    productType,
+    assignedTo,
+    validDate
+  } = req.body;
+  const now = new Date().toISOString();
+  const result = db.prepare(
+    'INSERT INTO orders (orderNumber, productId, quantity, status, priority, totalValue, customerName, productType, assignedTo, validDate, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(orderNumber, productId, quantity, status, priority, totalValue, customerName, productType, assignedTo, validDate, now, now);
+  const newOrder = db.prepare('SELECT * FROM orders WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(newOrder);
 });
 
 // GET /api/v1/orders/:id - Retrieve a single order by ID
 router.get('/:id', (req: Request, res: Response) => {
-  const order = orders.find(o => o.id === req.params.id);
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (order) {
     res.json(order);
   } else {
@@ -37,15 +44,24 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // PATCH /api/v1/orders/:id - Update an existing order
 router.patch('/:id', (req: Request, res: Response) => {
-  const index = orders.findIndex(o => o.id === req.params.id);
-  if (index !== -1) {
-    const originalOrder = orders[index];
-    const updatedOrder = {
-      ...originalOrder,
-      ...req.body,
-      updatedAt: new Date().toISOString(),
-    };
-    orders[index] = updatedOrder;
+  const {
+    orderNumber,
+    productId,
+    quantity,
+    status,
+    priority,
+    totalValue,
+    customerName,
+    productType,
+    assignedTo,
+    validDate
+  } = req.body;
+  const now = new Date().toISOString();
+  const result = db.prepare(
+    'UPDATE orders SET orderNumber = ?, productId = ?, quantity = ?, status = ?, priority = ?, totalValue = ?, customerName = ?, productType = ?, assignedTo = ?, validDate = ?, updatedAt = ? WHERE id = ?'
+  ).run(orderNumber, productId, quantity, status, priority, totalValue, customerName, productType, assignedTo, validDate, now, req.params.id);
+  if (result.changes) {
+    const updatedOrder = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
     res.json(updatedOrder);
   } else {
     res.status(404).send('Order not found');
@@ -54,12 +70,9 @@ router.patch('/:id', (req: Request, res: Response) => {
 
 // DELETE /api/v1/orders/:id - Delete an order
 router.delete('/:id', (req: Request, res: Response) => {
-  const index = orders.findIndex(o => o.id === req.params.id);
-  if (index !== -1) {
-    // In a real database, you would delete the record.
-    // Here, we'll just remove it from the array.
-    orders.splice(index, 1);
-    res.status(204).send(); // No Content
+  const result = db.prepare('DELETE FROM orders WHERE id = ?').run(req.params.id);
+  if (result.changes) {
+    res.status(204).send();
   } else {
     res.status(404).send('Order not found');
   }

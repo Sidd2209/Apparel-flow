@@ -1,9 +1,10 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import db from '../db';
+import { typedAll } from '../utils/dbHelpers';
 
-// Order Interface
-export interface IOrder extends Document {
+export interface IOrder {
+  id?: number;
   orderNumber: string;
-  productId: mongoose.Types.ObjectId;
+  productId: number;
   quantity: number;
   status: string;
   priority: string;
@@ -11,23 +12,12 @@ export interface IOrder extends Document {
   customerName: string;
   productType: string;
   assignedTo: string;
-  validDate: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  validDate: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Order Schema
-const OrderSchema: Schema = new Schema({
-  orderNumber: { type: String, required: true, unique: true },
-  productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
-  quantity: { type: Number, required: true },
-  status: { type: String, required: true, enum: ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'] },
-  priority: { type: String, required: true, enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] },
-  totalValue: { type: Number, required: true },
-  customerName: { type: String, required: true },
-  productType: { type: String, required: true },
-  assignedTo: { type: String, required: true },
-  validDate: { type: Date, required: true },
-}, { timestamps: true }); // timestamps will add createdAt and updatedAt fields automatically
-
-export default mongoose.model<IOrder>('Order', OrderSchema);
+// Example: Fetch all orders
+export function getAllOrders(): IOrder[] {
+  return typedAll<IOrder>(db.prepare('SELECT * FROM orders'));
+}

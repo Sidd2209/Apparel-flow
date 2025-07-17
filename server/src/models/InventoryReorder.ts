@@ -1,23 +1,17 @@
-import { Schema, model, Document } from 'mongoose';
+import db from '../db';
 
-export interface IInventoryReorder extends Document {
-  itemId: string;
+export interface IInventoryReorder {
+  id?: number;
+  itemId: number;
   quantity: number;
   supplier?: string;
   status: 'REQUESTED' | 'ORDERED' | 'RECEIVED' | 'CANCELLED';
   note?: string;
-  createdAt: Date;
+  createdAt: string;
   user?: string;
 }
 
-const InventoryReorderSchema = new Schema<IInventoryReorder>({
-  itemId: { type: String, required: true },
-  quantity: { type: Number, required: true },
-  supplier: { type: String },
-  status: { type: String, required: true, default: 'REQUESTED', enum: ['REQUESTED', 'ORDERED', 'RECEIVED', 'CANCELLED'] },
-  note: { type: String },
-  createdAt: { type: Date, default: Date.now },
-  user: { type: String },
-});
-
-export default model<IInventoryReorder>('InventoryReorder', InventoryReorderSchema); 
+// Example: Fetch reorders for an item
+export function getInventoryReorders(itemId: number): IInventoryReorder[] {
+  return db.prepare('SELECT * FROM inventory_reorders WHERE itemId = ? ORDER BY createdAt DESC').all(itemId) as IInventoryReorder[];
+} 

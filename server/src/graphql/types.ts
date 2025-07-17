@@ -29,7 +29,7 @@ export type Department = 'merchandising' | 'logistics' | 'procurement' | 'sampli
 export type Role = 'admin' | 'manager' | 'coordinator' | 'associate';
 
 export interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
   department: Department;
@@ -38,8 +38,8 @@ export interface User {
 }
 
 export interface Sample {
-  id: string;
-  productId: string;
+  id: number;
+  productId: number;
   version: number;
   status: SampleStatus;
   feedback: string;
@@ -48,8 +48,8 @@ export interface Sample {
 }
 
 export interface DesignFile {
-  id: string;
-  productId: string;
+  id: number;
+  productId: number;
   fileName: string;
   fileType: string;
   version: number;
@@ -59,7 +59,7 @@ export interface DesignFile {
 }
 
 export interface Product {
-  id: string;
+  id: number;
   name: string;
   sku: string;
   category: string;

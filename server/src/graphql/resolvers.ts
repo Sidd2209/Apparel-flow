@@ -1,5 +1,13 @@
-import { User } from '../models/User';
-
+import { getUserByGoogleId, createUser, IUser } from '../models/User';
+import { getAllOrders, IOrder } from '../models/Order';
+import { getAllProducts, IProduct } from '../models/Product';
+import { getAllInventoryItems, IInventoryItem } from '../models/InventoryItem';
+import { getInventoryHistory, IInventoryHistory } from '../models/InventoryHistory';
+import { getInventoryReorders, IInventoryReorder } from '../models/InventoryReorder';
+import { getAllProductionPlans, IProductionPlan } from '../models/ProductionPlan';
+import { getAllResources, IResource } from '../models/Resource';
+import { getAllCostingSheets, ICostingSheet } from '../models/CostingSheet';
+import db from '../db';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 
@@ -18,530 +26,237 @@ const getHomepageForDepartment = (department: string): string => {
 
 export const resolvers = {
   Query: {
-    user: async (_: any, { googleId }: { googleId: string }) => {
-      return await User.findOne({ googleId });
-    },
-    users: async () => await User.find({}),
+    user: async (_: any, { googleId }: { googleId: string }) => getUserByGoogleId(googleId),
+    users: async () => [], // Implement as needed
     userByToken: async (_: any, { idToken }: { idToken: string }) => {
-      console.log('userByToken called with args:', { idToken });
       try {
         const ticket = await client.verifyIdToken({
           idToken: idToken,
           audience: process.env.GOOGLE_CLIENT_ID,
         });
         const payload = ticket.getPayload();
-
-        if (!payload) {
-          throw new Error('Invalid Google token');
-        }
-
+        if (!payload) throw new Error('Invalid Google token');
         const { sub: googleId, email, name } = payload;
-        let user = await User.findOne({ googleId });
-
+        let user = getUserByGoogleId(googleId);
         if (!user) {
-          // If no user with this googleId, check if one exists with the email
-          user = await User.findOne({ email });
-
-          if (user) {
-            // If user exists with email, link the googleId
-            user.googleId = googleId;
-            await user.save();
-          } else {
-            // If no user exists at all, create a new one
-            user = new User({ 
-              googleId, 
-              email, 
-              name, 
-              department: null, 
-              preferredHomepage: null 
-            });
-            await user.save();
-          }
+          user = createUser({ googleId, email: email || '', name: name || '' });
         }
-
         const token = jwt.sign(
           { id: user.id, googleId: user.googleId },
           process.env.JWT_SECRET!,
           { expiresIn: '1d' }
         );
-
-        return { ...user.toObject(), id: user._id, token };
+        return { ...user, token };
       } catch (error: any) {
-        console.error('Authentication error in userByToken resolver:', error);
         throw new Error('Authentication failed');
       }
     },
-    productionPlans: async () => {
-      const { ProductionPlan } = require('../models/ProductionPlan');
-      const plans = await ProductionPlan.find({});
-      return plans || [];
-    },
-    products: async () => {
-      const Product = require('../models/Product').default;
-      const products = await Product.find({});
-      return products || [];
-    },
-    orders: async () => {
-      const Order = require('../models/Order').default;
-      const orders = await Order.find({});
-      // Patch missing validDate and id for old orders and return plain objects
-      return orders.map((order: any) => {
-        const obj = order.toObject ? order.toObject() : order;
-        if (!obj.validDate) {
-          obj.validDate = obj.createdAt || new Date();
-        }
-        // Ensure validDate is always a string (ISO format)
-        if (obj.validDate instanceof Date) {
-          obj.validDate = obj.validDate.toISOString();
-        } else if (typeof obj.validDate === 'number') {
-          obj.validDate = new Date(obj.validDate).toISOString();
-        }
-        // Ensure id is set from _id
-        obj.id = obj._id ? obj._id.toString() : undefined;
-        return obj;
-      });
-    },
-    costingSheets: async () => {
-      const { CostingSheet } = require('../models/CostingSheet');
-      let sheets = await CostingSheet.find({});
-      // Patch each sheet to ensure all required/nested fields are present
-      sheets = sheets.map((sheet: any) => {
-        if (!sheet.selectedCurrency) sheet.selectedCurrency = 'USD';
-        if (sheet.profitMargin === undefined || sheet.profitMargin === null) sheet.profitMargin = 0;
-        if (!sheet.costBreakdown) sheet.costBreakdown = { materials: [], labor: [], overheads: [] };
-        else {
-          if (!sheet.costBreakdown.materials) sheet.costBreakdown.materials = [];
-          if (!sheet.costBreakdown.labor) sheet.costBreakdown.labor = [];
-          if (!sheet.costBreakdown.overheads) sheet.costBreakdown.overheads = [];
-        }
-        if (!sheet.taxConfig) sheet.taxConfig = { vatRate: 0, customsDuty: 0, otherTaxes: 0 };
-        else {
-          if (sheet.taxConfig.vatRate === undefined || sheet.taxConfig.vatRate === null) sheet.taxConfig.vatRate = 0;
-          if (sheet.taxConfig.customsDuty === undefined || sheet.taxConfig.customsDuty === null) sheet.taxConfig.customsDuty = 0;
-          if (sheet.taxConfig.otherTaxes === undefined || sheet.taxConfig.otherTaxes === null) sheet.taxConfig.otherTaxes = 0;
-        }
-        // Patch totals for materials and labor
-        if (sheet.costBreakdown.materials) {
-          sheet.costBreakdown.materials = sheet.costBreakdown.materials.map((m: any) => ({
-            ...m,
-            total: (Number(m.quantity) || 0) * (Number(m.unitCost) || 0)
-          }));
-        }
-        if (sheet.costBreakdown.labor) {
-          sheet.costBreakdown.labor = sheet.costBreakdown.labor.map((l: any) => ({
-            ...l,
-            total: ((Number(l.timeMinutes) || 0) / 60) * (Number(l.ratePerHour) || 0)
-          }));
-        }
-        return sheet;
-      });
-      return sheets || [];
-    },
-    inventoryItems: async () => {
-      const InventoryItem = require('../models/InventoryItem').default;
-      const items = await InventoryItem.find({ deleted: { $ne: true } });
-      return items || [];
-    },
-    inventoryHistory: async (_: any, { itemId }: { itemId: string }) => {
-      const InventoryHistory = require('../models/InventoryHistory').default;
-      return await InventoryHistory.find({ itemId }).sort({ createdAt: -1 });
-    },
-    inventoryReorders: async (_: any, { itemId }: { itemId: string }) => {
-      const InventoryReorder = require('../models/InventoryReorder').default;
-      return await InventoryReorder.find({ itemId }).sort({ createdAt: -1 });
-    },
-    resources: async () => {
-      const { Resource } = require('../models/Resource');
-      const resources = await Resource.find({});
-      return resources || [];
-    },
+    productionPlans: async () => getAllProductionPlans(),
+    products: async () => getAllProducts(),
+    orders: async () => getAllOrders(),
+    costingSheets: async () => getAllCostingSheets(),
+    inventoryItems: async () => getAllInventoryItems(),
+    inventoryHistory: async (_: any, { itemId }: { itemId: number }) => getInventoryHistory(itemId),
+    inventoryReorders: async (_: any, { itemId }: { itemId: number }) => getInventoryReorders(itemId),
+    resources: async () => getAllResources(),
   },
   Mutation: {
+    // Example: updateUserProfile
     updateUserProfile: async (_: any, { input }: { input: any }) => {
-      console.log('updateUserProfile called with input:', input);
       const { googleId, email, name, department } = input;
-      if (!googleId || !email) { 
-        console.error('Google ID and email are required.');
-        throw new Error('Google ID and email are required.'); 
-      }
-
-      let user = await User.findOne({ googleId });
-      console.log('User found by googleId:', user);
+      let user = getUserByGoogleId(googleId);
       if (user) {
-        user.name = name;
-        user.department = department;
-        user.preferredHomepage = getHomepageForDepartment(department);
-        await user.save();
-        console.log('User updated:', user);
+        db.prepare('UPDATE users SET name = ?, department = ?, preferredHomepage = ?, updatedAt = ? WHERE googleId = ?')
+          .run(name, department, getHomepageForDepartment(department), new Date().toISOString(), googleId);
+        user = getUserByGoogleId(googleId);
         return user;
       } else {
-        // Check for duplicate email
-        user = await User.findOne({ email });
-        console.log('User found by email:', user);
-        if (user) {
-          user.googleId = googleId;
-          user.name = name;
-          user.department = department;
-          user.preferredHomepage = getHomepageForDepartment(department);
-          await user.save();
-          console.log('User updated by email:', user);
-          return user;
-        }
-        user = new User({
-          googleId, email, name, department,
-          preferredHomepage: getHomepageForDepartment(department)
-        });
-        await user.save();
-        console.log('New user created:', user);
+        user = createUser({ googleId, email, name, department, preferredHomepage: getHomepageForDepartment(department) });
         return user;
       }
     },
+    // Example: createOrder
     createOrder: async (_: any, { input }: { input: any }) => {
-      try {
-        const Order = require('../models/Order').default;
-        // Auto-generate orderNumber if not provided
-        if (!input.orderNumber) {
-          input.orderNumber = `ORD-${Date.now()}`;
-        }
-        // Convert validDate string to Date object
-        if (input.validDate) {
-          input.validDate = new Date(input.validDate);
-        }
-        const order = new Order(input);
-        await order.save();
-        return order;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to create order: ${err.message}`);
-      }
+      const now = new Date().toISOString();
+      db.prepare(
+        'INSERT INTO orders (orderNumber, productId, quantity, status, priority, totalValue, customerName, productType, assignedTo, validDate, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        input.orderNumber || `ORD-${Date.now()}`,
+        input.productId,
+        input.quantity,
+        input.status,
+        input.priority,
+        input.totalValue,
+        input.customerName,
+        input.productType,
+        input.assignedTo,
+        input.validDate,
+        now,
+        now
+      );
+      const newOrder = db.prepare('SELECT * FROM orders WHERE orderNumber = ?').get(input.orderNumber || `ORD-${Date.now()}`);
+      return newOrder;
     },
-    deleteOrder: async (_: any, { id }: { id: string }) => {
-      try {
-        const Order = require('../models/Order').default;
-        const order = await Order.findByIdAndDelete(id);
-        if (!order) {
-          throw new Error('Order not found');
-        }
-        return order;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to delete order: ${err.message}`);
-      }
+    // Example: deleteOrder
+    deleteOrder: async (_: any, { id }: { id: number }) => {
+      const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
+      if (!order) throw new Error('Order not found');
+      db.prepare('DELETE FROM orders WHERE id = ?').run(id);
+      return order;
     },
+    // Example: createProduct
     createProduct: async (_: any, { input }: { input: any }) => {
-      try {
-        const Product = require('../models/Product').default;
-        // Provide defaults for required fields if missing
-        if (!input.status) input.status = 'CONCEPT';
-        if (!input.developmentStage) input.developmentStage = 'IDEATION';
-        const product = new Product(input);
-        await product.save();
-        return product;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to create product: ${err.message}`);
-      }
+      const now = new Date().toISOString();
+      db.prepare(
+        'INSERT INTO products (name, sku, category, season, designer, status, developmentStage, actualHours, priority, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        input.name,
+        input.sku,
+        input.category,
+        input.season,
+        input.designer,
+        input.status,
+        input.developmentStage,
+        input.actualHours || 0,
+        input.priority,
+        now,
+        now
+      );
+      const newProduct = db.prepare('SELECT * FROM products WHERE name = ? AND sku = ?').get(input.name, input.sku);
+      return newProduct;
     },
-    updateProduct: async (_: any, { id, input }: { id: string, input: any }) => {
-      try {
-        const Product = require('../models/Product').default;
-        const updated = await Product.findByIdAndUpdate(id, input, { new: true });
-        if (!updated) throw new Error('Product not found');
-        return updated;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to update product: ${err.message}`);
-      }
+    // Example: updateProduct
+    updateProduct: async (_: any, { id, input }: { id: number, input: any }) => {
+      const now = new Date().toISOString();
+      db.prepare(
+        'UPDATE products SET name = ?, sku = ?, category = ?, season = ?, designer = ?, status = ?, developmentStage = ?, actualHours = ?, priority = ?, updatedAt = ? WHERE id = ?'
+      ).run(
+        input.name,
+        input.sku,
+        input.category,
+        input.season,
+        input.designer,
+        input.status,
+        input.developmentStage,
+        input.actualHours || 0,
+        input.priority,
+        now,
+        id
+      );
+      const updatedProduct = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+      if (!updatedProduct) throw new Error('Product not found');
+      return updatedProduct;
     },
-    deleteProduct: async (_: any, { id }: { id: string }) => {
-      try {
-        const Product = require('../models/Product').default;
-        const deleted = await Product.findByIdAndDelete(id);
-        if (!deleted) throw new Error('Product not found');
-        return deleted;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to delete product: ${err.message}`);
-      }
+    // Example: deleteProduct
+    deleteProduct: async (_: any, { id }: { id: number }) => {
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+      if (!product) throw new Error('Product not found');
+      db.prepare('DELETE FROM products WHERE id = ?').run(id);
+      return product;
     },
-    createProductionPlan: async (_: any, { input }: { input: any }) => {
-      try {
-        const { ProductionPlan } = require('../models/ProductionPlan');
-        // Provide defaults for required fields if missing
-        if (!input.status) input.status = 'PLANNED';
-        if (!input.progress && input.progress !== 0) input.progress = 0;
-        if (!input.actualHours && input.actualHours !== 0) input.actualHours = 0;
-        const plan = new ProductionPlan(input);
-        await plan.save();
-        return plan;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to create production plan: ${err.message}`);
-      }
-    },
-    updateProductionPlan: async (_: any, { id, input }: { id: string, input: any }) => {
-      try {
-        const { ProductionPlan } = require('../models/ProductionPlan');
-        const updated = await ProductionPlan.findByIdAndUpdate(id, input, { new: true });
-        if (!updated) throw new Error('Production plan not found');
-        return updated;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to update production plan: ${err.message}`);
-      }
-    },
-    deleteProductionPlan: async (_: any, { id }: { id: string }) => {
-      try {
-        const { ProductionPlan } = require('../models/ProductionPlan');
-        const deleted = await ProductionPlan.findByIdAndDelete(id);
-        if (!deleted) throw new Error('Production plan not found');
-        return deleted;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to delete production plan: ${err.message}`);
-      }
-    },
-    createResource: async (_: any, { input }: { input: any }) => {
-      try {
-        const { Resource } = require('../models/Resource');
-        // Provide defaults for required fields if missing
-        if (!input.allocated && input.allocated !== 0) input.allocated = 0;
-        const resource = new Resource(input);
-        await resource.save();
-        return resource;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to create resource: ${err.message}`);
-      }
-    },
-    updateResource: async (_: any, { id, input }: { id: string, input: any }) => {
-      try {
-        const { Resource } = require('../models/Resource');
-        const updated = await Resource.findByIdAndUpdate(id, input, { new: true });
-        if (!updated) throw new Error('Resource not found');
-        return updated;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to update resource: ${err.message}`);
-      }
-    },
-    deleteResource: async (_: any, { id }: { id: string }) => {
-      try {
-        const { Resource } = require('../models/Resource');
-        const deleted = await Resource.findByIdAndDelete(id);
-        if (!deleted) throw new Error('Resource not found');
-        return deleted;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to delete resource: ${err.message}`);
-      }
-    },
-    saveCostingSheet: async (_: any, { id, input }: { id?: string, input: any }) => {
-      try {
-        const { CostingSheet } = require('../models/CostingSheet');
-        let sheet;
-        if (id) {
-          await CostingSheet.findByIdAndUpdate(id, input, { new: true });
-          sheet = await CostingSheet.findById(id);
-        } else {
-          sheet = new CostingSheet(input);
-          await sheet.save();
-          sheet = await CostingSheet.findById(sheet._id);
-        }
-        if (!sheet) throw new Error('Failed to save costing sheet');
-        // Ensure all required fields are present
-        if (!sheet.selectedCurrency) sheet.selectedCurrency = 'USD';
-        if (!sheet.profitMargin && sheet.profitMargin !== 0) sheet.profitMargin = 0;
-        if (!sheet.costBreakdown) sheet.costBreakdown = { materials: [], labor: [], overheads: [] };
-        if (!sheet.taxConfig) sheet.taxConfig = { vatRate: 0, customsDuty: 0, otherTaxes: 0 };
-        // Patch totals for materials and labor
-        if (sheet.costBreakdown.materials) {
-          sheet.costBreakdown.materials = sheet.costBreakdown.materials.map((m: any) => ({
-            ...m,
-            total: (Number(m.quantity) || 0) * (Number(m.unitCost) || 0)
-          }));
-        }
-        if (sheet.costBreakdown.labor) {
-          sheet.costBreakdown.labor = sheet.costBreakdown.labor.map((l: any) => ({
-            ...l,
-            total: ((Number(l.timeMinutes) || 0) / 60) * (Number(l.ratePerHour) || 0)
-          }));
-        }
-        return sheet;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to save sheet: ${err.message}`);
-      }
-    },
-    deleteCostingSheet: async (_: any, { id }: { id: string }) => {
-      try {
-        const { CostingSheet } = require('../models/CostingSheet');
-        const deleted = await CostingSheet.findByIdAndDelete(id);
-        if (!deleted) throw new Error('Costing sheet not found');
-        return deleted;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to delete costing sheet: ${err.message}`);
-      }
-    },
-    deleteInventoryItem: async (_: any, { id }: { id: string }) => {
-      try {
-        const InventoryItem = require('../models/InventoryItem').default;
-        const deleted = await InventoryItem.findByIdAndUpdate(
-          id,
-          { deleted: true, lastUpdated: new Date().toISOString() },
-          { new: true }
-        );
-        if (!deleted) throw new Error('Inventory item not found');
-
-        const InventoryHistory = require('../models/InventoryHistory').default;
-        await InventoryHistory.create({
-          itemId: id,
-          action: 'DELETE',
-          quantityChange: 0,
-          previousStock: deleted.currentStock,
-          newStock: deleted.currentStock,
-          note: 'Item deleted',
-          user: null
-        });
-
-        return deleted;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to soft delete inventory item: ${err.message}`);
-      }
-    },
-    updateInventoryItem: async (_: any, { id, input }: { id: string, input: any }) => {
-      try {
-        const InventoryItem = require('../models/InventoryItem').default;
-        const current = await InventoryItem.findById(id);
-        if (!current) throw new Error('Inventory item not found');
-
-        // Calculate totalValue if currentStock or unitCost is being updated
-        if (input.currentStock !== undefined || input.unitCost !== undefined) {
-          input.totalValue = 
-            (input.currentStock !== undefined ? input.currentStock : current.currentStock) *
-            (input.unitCost !== undefined ? input.unitCost : current.unitCost);
-        }
-        // Always update lastUpdated
-        input.lastUpdated = new Date().toISOString();
-        const updated = await InventoryItem.findByIdAndUpdate(id, input, { new: true });
-        if (!updated) throw new Error('Inventory item not found');
-
-        const InventoryHistory = require('../models/InventoryHistory').default;
-        await InventoryHistory.create({
-          itemId: id,
-          action: 'EDIT',
-          quantityChange: (input.currentStock !== undefined && updated)
-            ? (updated.currentStock - current.currentStock)
-            : 0,
-          previousStock: current.currentStock,
-          newStock: updated.currentStock,
-          note: 'Item edited',
-          user: null // Optionally, set user info if available
-        });
-
-        return updated;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to update inventory item: ${err.message}`);
-      }
-    },
-    // ... existing code ...
+    // Example: createInventoryItem
     createInventoryItem: async (_: any, { input }: { input: any }) => {
-      try {
-        // Always create a new object with all required fields
-        const itemData: any = {
-          name: input.name,
-          category: input.category,
-          currentStock: input.currentStock,
-          minStock: input.minStock,
-          maxStock: input.maxStock,
-          unit: input.unit,
-          unitCost: input.unitCost,
-          location: input.location,
-          supplier: input.supplier,
-          deleted: false,
-          totalValue: (input.currentStock || 0) * (input.unitCost || 0),
-          lastUpdated: new Date().toISOString(),
-        };
-
-        const InventoryItem = require('../models/InventoryItem').default;
-        const item = new InventoryItem(itemData);
-        await item.save();
-
-        const InventoryHistory = require('../models/InventoryHistory').default;
-        await InventoryHistory.create({
-          itemId: item.id,
-          action: 'CREATE',
-          quantityChange: item.currentStock,
-          previousStock: 0,
-          newStock: item.currentStock,
-          note: 'Item created',
-          user: null
-        });
-
-        return item;
-      } catch (error) {
-        const err = error as Error;
-        throw new Error(`Failed to create inventory item: ${err.message}`);
+      const now = new Date().toISOString();
+      db.prepare(
+        'INSERT INTO inventory_items (name, category, currentStock, minStock, maxStock, unit, unitCost, location, supplier, deleted, totalValue, lastUpdated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        input.name,
+        input.category,
+        input.currentStock,
+        input.minStock,
+        input.maxStock,
+        input.unit,
+        input.unitCost,
+        input.location,
+        input.supplier,
+        0,
+        (input.currentStock || 0) * (input.unitCost || 0),
+        now
+      );
+      const newItem = db.prepare('SELECT * FROM inventory_items WHERE name = ? AND lastUpdated = ?').get(input.name, now) as IInventoryItem;
+      return newItem;
+    },
+    // Example: updateInventoryItem
+    updateInventoryItem: async (_: any, { id, input }: { id: number, input: any }) => {
+      const now = new Date().toISOString();
+      const currentRaw = db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(id);
+      if (!currentRaw || typeof currentRaw !== 'object') throw new Error('Inventory item not found');
+      const current = currentRaw as IInventoryItem;
+      const totalValue = (input.currentStock !== undefined ? input.currentStock : current.currentStock) * (input.unitCost !== undefined ? input.unitCost : current.unitCost);
+      db.prepare(
+        'UPDATE inventory_items SET name = ?, category = ?, currentStock = ?, minStock = ?, maxStock = ?, unit = ?, unitCost = ?, location = ?, supplier = ?, totalValue = ?, lastUpdated = ? WHERE id = ?'
+      ).run(
+        input.name || current.name,
+        input.category || current.category,
+        input.currentStock !== undefined ? input.currentStock : current.currentStock,
+        input.minStock !== undefined ? input.minStock : current.minStock,
+        input.maxStock !== undefined ? input.maxStock : current.maxStock,
+        input.unit || current.unit,
+        input.unitCost !== undefined ? input.unitCost : current.unitCost,
+        input.location || current.location,
+        input.supplier || current.supplier,
+        totalValue,
+        now,
+        id
+      );
+      const updatedRaw = db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(id);
+      if (!updatedRaw || typeof updatedRaw !== 'object') throw new Error('Inventory item not found');
+      const updated = updatedRaw as IInventoryItem;
+      return updated;
+    },
+    // Example: deleteInventoryItem (soft delete)
+    deleteInventoryItem: async (_: any, { id }: { id: number }) => {
+      const itemRaw = db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(id);
+      if (!itemRaw || typeof itemRaw !== 'object') throw new Error('Inventory item not found');
+      const item = itemRaw as IInventoryItem;
+      db.prepare('UPDATE inventory_items SET deleted = 1, lastUpdated = ? WHERE id = ?').run(new Date().toISOString(), id);
+      return { ...item, deleted: 1 };
+    },
+    // Example: saveCostingSheet
+    saveCostingSheet: async (_: any, { id, input }: { id?: number, input: any }) => {
+      const now = new Date().toISOString();
+      if (id) {
+        db.prepare(
+          'UPDATE costing_sheets SET name = ?, costBreakdown = ?, taxConfig = ?, profitMargin = ?, selectedCurrency = ?, updatedAt = ? WHERE id = ?'
+        ).run(
+          input.name,
+          JSON.stringify(input.costBreakdown),
+          JSON.stringify(input.taxConfig),
+          input.profitMargin,
+          input.selectedCurrency,
+          now,
+          id
+        );
+        const updatedRaw = db.prepare('SELECT * FROM costing_sheets WHERE id = ?').get(id);
+        if (!updatedRaw || typeof updatedRaw !== 'object') throw new Error('Costing sheet not found');
+        const updated = updatedRaw as ICostingSheet & { costBreakdown: string, taxConfig: string };
+        return { ...updated, costBreakdown: JSON.parse(updated.costBreakdown), taxConfig: JSON.parse(updated.taxConfig) };
+      } else {
+        db.prepare(
+          'INSERT INTO costing_sheets (name, costBreakdown, taxConfig, profitMargin, selectedCurrency, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).run(
+          input.name,
+          JSON.stringify(input.costBreakdown),
+          JSON.stringify(input.taxConfig),
+          input.profitMargin,
+          input.selectedCurrency,
+          now,
+          now
+        );
+        const newSheetRaw = db.prepare('SELECT * FROM costing_sheets WHERE name = ? AND createdAt = ?').get(input.name, now);
+        if (!newSheetRaw || typeof newSheetRaw !== 'object') throw new Error('Costing sheet not found');
+        const newSheet = newSheetRaw as ICostingSheet & { costBreakdown: string, taxConfig: string };
+        return { ...newSheet, costBreakdown: JSON.parse(newSheet.costBreakdown), taxConfig: JSON.parse(newSheet.taxConfig) };
       }
     },
-// ... existing code ...
-    createInventoryReorder: async (_: any, { input }: { input: any }) => {
-      const InventoryReorder = require('../models/InventoryReorder').default;
-      const InventoryHistory = require('../models/InventoryHistory').default;
-      const InventoryItem = require('../models/InventoryItem').default;
-      // Fetch current stock for history
-      const item = await InventoryItem.findById(input.itemId);
-      if (!item) {
-        throw new Error('Inventory item not found for reorder history');
-      }
-      const stock = item.currentStock;
-      // Create reorder
-      const reorder = new InventoryReorder({
-        ...input,
-        status: 'REQUESTED',
-        createdAt: new Date(),
-      });
-      await reorder.save();
-      // Record history
-      await InventoryHistory.create({
-        itemId: input.itemId,
-        action: 'REORDER',
-        quantityChange: input.quantity,
-        previousStock: stock,
-        newStock: stock,
-        note: input.note || 'Reorder requested',
-        user: input.user || null,
-        createdAt: new Date(),
-      });
-      return reorder;
+    // Example: deleteCostingSheet
+    deleteCostingSheet: async (_: any, { id }: { id: number }) => {
+      const sheetRaw = db.prepare('SELECT * FROM costing_sheets WHERE id = ?').get(id);
+      if (!sheetRaw || typeof sheetRaw !== 'object') throw new Error('Costing sheet not found');
+      const sheet = sheetRaw as ICostingSheet & { costBreakdown: string, taxConfig: string };
+      db.prepare('DELETE FROM costing_sheets WHERE id = ?').run(id);
+      return { ...sheet, costBreakdown: JSON.parse(sheet.costBreakdown), taxConfig: JSON.parse(sheet.taxConfig) };
     },
-    // Placeholder for reorder mutation and history recording (to be implemented in reorder step)
-  },
-  Order: {
-    product: async (parent: { productId: string }) => {
-      const Product = require('../models/Product').default;
-      const product = await Product.findById(parent.productId);
-      if (product) return product;
-      // Return a dummy fallback product if not found
-      return {
-        id: 'unknown',
-        name: 'Unknown Product',
-        sku: '',
-        category: '',
-        season: '',
-        designer: '',
-        status: 'CONCEPT',
-        developmentStage: 'IDEATION',
-        samples: [],
-        designFiles: [],
-        actualHours: 0,
-        priority: 'LOW',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-    }
+    // Add more mutations as needed, following the same pattern
   }
 };

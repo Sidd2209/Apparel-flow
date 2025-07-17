@@ -1,19 +1,14 @@
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
 import { resolvers } from './graphql/resolvers';
 import { typeDefs } from './graphql/schema';
 import dotenv from 'dotenv';
+import type { Response as ExpressResponse } from 'express';
 
 dotenv.config();
-
-const MONGO_URI = process.env.MONGO_URI;
-if (!MONGO_URI) {
-  throw new Error('Please define the MONGO_URI environment variable');
-}
 
 const app = express();
 app.use(cors());
@@ -25,9 +20,6 @@ const server = new ApolloServer({
 
 export const startServer = async () => {
   try {
-    await mongoose.connect(MONGO_URI);
-    console.log('🔌 Successfully connected to MongoDB');
-
     await server.start();
 
     // Handle preflight requests for /graphql
@@ -51,13 +43,13 @@ export const startServer = async () => {
         credentials: true
       }),
       bodyParser.json(),
-      (req, res, next) => {
-        res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-        res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
+      (req: Request, res: Response, next: NextFunction) => {
+        (res as any).setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+        (res as any).setHeader("Cross-Origin-Embedder-Policy", "credentialless");
         next();
       },
       expressMiddleware(server, {
-        context: async ({ req }) => ({ token: req.headers.authorization }),
+        context: async ({ req }: { req: any }) => ({ token: req.headers?.authorization }),
       }),
     );
 

@@ -1,56 +1,27 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import db from '../db';
 
-export interface IUser extends Document {
+export interface IUser {
+  id?: number;
   googleId: string;
   email: string;
   name: string;
-  department: 'DESIGN' | 'SOURCING' | 'PRODUCTION' | 'SALES' | 'INVENTORY';
-  preferredHomepage: string;
+  department?: 'DESIGN' | 'SOURCING' | 'PRODUCTION' | 'SALES' | 'INVENTORY';
+  preferredHomepage?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-const UserSchema: Schema = new Schema({
-  googleId: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  name: { type: String, required: true },
-  department: {
-    type: String,
-    required: false,
-    enum: ['DESIGN', 'SOURCING', 'PRODUCTION', 'SALES', 'INVENTORY'],
-  },
-  preferredHomepage: { type: String, required: false },
-}, { timestamps: true });
+// Example: Fetch user by googleId
+export function getUserByGoogleId(googleId: string): IUser | undefined {
+  const user = db.prepare('SELECT * FROM users WHERE googleId = ?').get(googleId);
+  if (user && typeof user === 'object') return user as IUser;
+  return undefined;
+}
 
-// Middleware to set the preferred homepage based on the selected department
-UserSchema.pre<IUser>('save', function(next) {
-  console.log('--- PRE-SAVE HOOK TRIGGERED ---');
-  console.log('isNew:', this.isNew);
-  console.log('isModified("department"):', this.isModified('department'));
-  console.log('Department:', this.department);
-
-  if (this.isNew || this.isModified('department')) {
-    console.log('--- CONDITION MET, SETTING HOMEPAGE ---');
-    switch (this.department) {
-      case 'DESIGN':
-        this.preferredHomepage = '/product-dev';
-        break;
-      case 'SOURCING':
-        this.preferredHomepage = '/sourcing';
-        break;
-      case 'PRODUCTION':
-        this.preferredHomepage = '/production-scheduler';
-        break;
-      case 'SALES':
-        this.preferredHomepage = '/orders';
-        break;
-      case 'INVENTORY':
-        this.preferredHomepage = '/inventory';
-        break;
-      default:
-        this.preferredHomepage = '/';
-    }
-  }
-  console.log('--- HOMEPAGE AFTER LOGIC ---', this.preferredHomepage);
-  next();
-});
-
-export const User = mongoose.model<IUser>('User', UserSchema);
+// Example: Create user
+export function createUser(user: Omit<IUser, 'id'>): IUser {
+  const now = new Date().toISOString();
+  db.prepare(`INSERT INTO users (googleId, email, name, department, preferredHomepage, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+    .run(user.googleId, user.email, user.name, user.department, user.preferredHomepage, now, now);
+  return getUserByGoogleId(user.googleId)!;
+}
